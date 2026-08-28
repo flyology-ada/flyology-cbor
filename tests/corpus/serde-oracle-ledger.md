@@ -18,9 +18,12 @@ syntax transcripts and bytes; typed-envelope expectations remain Serde-private.
 | Simple/break | `F4` through `F7`, `F8 1F` rejection, misplaced `FF`, reserved AI `1C` through `1E` |
 | Truncation | split heads, payloads, missing array/map/tag children, `63 C2`, and malformed-plus-truncated `63 C2 20` |
 | UTF-8 | valid two/four-octet scalars, invalid lead/continuation, incomplete scalar at exact payload end |
-| Transport | arbitrary non-one bounds, one-byte schedule, Step/Drain count and suffix rules |
-| Writer lifecycle | capacity prefix retention, abort retention, reset clearing, commit-only publication, cleanup secondary |
+| Transport | arbitrary non-one bounds; one-byte UTF-8 schedule; every fixed chunk size for a 31-byte scalar/container tape; Drain capacities 1 through 8; suffix replay; final-input retraction; pending failure |
+| Writer lifecycle | capacity prefix retention, abort retention, reset clearing, commit-only publication, begin/write/commit/abort status failures, cleanup secondary |
 
 `tests/src/flyology_cbor_tests.adb` is the executable ledger. The all-initial-octets campaign terminates every possible
-initial byte under true final input, while explicit transcript cases assert semantic events, raw/inline fragment
-ownership, offsets, writer bytes, and lifecycle state.
+initial byte under true final input. Explicit cases assert integer arguments, float widths/bits/categories, definite
+and indefinite strings and containers, empty chunks, stacked tags, raw simple values, malformed/truncated precedence,
+split-header provenance, raw/inline fragment ownership, exact offsets, writer bytes, and lifecycle state. The
+transport differential compares `Step` and `Drain` event kinds and complete source ranges across the schedules above.
+`tests/no-allocation` separately proves the parser plus bounded writer partition under GNAT's allocator restrictions.

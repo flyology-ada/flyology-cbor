@@ -124,6 +124,20 @@ alr --non-interactive --settings="$settings_root" index --reset-community
 alr --non-interactive --settings="$settings_root" index \
   --add="file:$index_root" --name=flyology_cbor_candidate --before=community
 
+gnatdoc_root="$temporary_root/gnatdoc"
+mkdir -p "$gnatdoc_root"
+(
+  cd "$gnatdoc_root"
+  gnatdoc_directory=$(alr --non-interactive --settings="$settings_root" \
+    get --dirname "gnatdoc_bin=26.0.0")
+  alr --non-interactive --settings="$settings_root" get --only "gnatdoc_bin=26.0.0"
+  case "$gnatdoc_directory" in
+    /*) gnatdoc="$gnatdoc_directory/bin/gnatdoc" ;;
+    *) gnatdoc="$gnatdoc_root/$gnatdoc_directory/bin/gnatdoc" ;;
+  esac
+  "$source_root/scripts/check-gnatdoc.sh" "$gnatdoc"
+)
+
 deployment_root="$temporary_root/deployment"
 mkdir -p "$deployment_root"
 (

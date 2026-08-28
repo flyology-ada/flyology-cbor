@@ -1,0 +1,14 @@
+with "../../flyology_cbor.gpr";
+
+project Flyology_CBOR_No_Allocation is
+   for Source_Dirs use ("src");
+   for Object_Dir use "obj";
+   for Exec_Dir use "bin";
+   for Main use ("flyology_cbor_no_allocation.adb");
+   for Create_Missing_Dirs use "True";
+
+   package Compiler is
+      for Default_Switches ("Ada") use
+        ("-gnat2022", "-gnata", "-gnatVa", "-gnato", "-gnatwe", "-gnatwa", "-gnatyM110");
+   end Compiler;
+end Flyology_CBOR_No_Allocation;

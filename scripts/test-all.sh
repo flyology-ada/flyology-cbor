@@ -16,11 +16,19 @@ alr exec -- gprbuild -f -p -j0 -P tests/flyology_cbor_tests.gpr
 alr exec -- gprbuild -f -p -j0 \
   -P tests/installed-client/flyology_cbor_installed_client.gpr
 "$project_root/tests/installed-client/bin/flyology_cbor_installed_client"
+alr exec -- gprbuild -f -p -j0 \
+  -P tests/no-allocation/flyology_cbor_no_allocation.gpr
+"$project_root/tests/no-allocation/bin/flyology_cbor_no_allocation"
 "$project_root/scripts/check-public-units.sh"
 
 if rg -n 'Flyology_Serde|Type_IR|Reflection|Flyology_Wire|Flyology_JSON|Ada\.Task' \
   src alire.toml flyology_cbor.gpr; then
   echo "forbidden downstream dependency or semantic coupling in runtime sources" >&2
+  exit 1
+fi
+
+if rg -n '^with (Interfaces\.C|GNAT\.OS_Lib|System\.(OS|Tasking)|Ada\.Task)' src; then
+  echo "OS, C, or tasking import entered the runtime sources" >&2
   exit 1
 fi
 

@@ -4,9 +4,15 @@
 caller-driven, allocation-free, and independent of Serde, Type IR, Reflection, Wire, Flyology tasking, operating
 system APIs, and C.
 
-The `0.1.0-dev` declarations are frozen and the implementation is undergoing oracle and release review. The crate
-is not published to GitHub or the Alire index. The exact declaration freeze is recorded in
+The `0.1.0-dev` declarations are frozen and the local implementation candidate is under final oracle and release
+review. The crate is not published to GitHub or the Alire index. The exact declaration freeze is recorded in
 [`docs/reviews/2026-08-27-declaration-freeze.md`](docs/reviews/2026-08-27-declaration-freeze.md).
+
+`alr test` builds and runs the parser/writer corpus, the external installed-shape client, a partition compiled with
+`No_Allocators` and `No_Implicit_Heap_Allocations`, dependency/isolation scans, the exact public-unit inventory, and
+the 110-column gate. `scripts/verify-release.sh candidate SOURCE-COMMIT` additionally reproduces a pristine archive,
+validates a temporary index, generates GNATdoc with indexed `gnatdoc_bin=26.0.0`, compares the documented public
+units, verifies deployed bytes and executable modes, and resolves an isolated no-pin client.
 
 ## License
 
