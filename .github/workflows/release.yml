@@ -36,6 +36,11 @@ jobs:
           version: 2.1.1
           toolchain: gnat_native=16.1.0 gprbuild=26.0.1
           cache: true
+      - name: Select exact Ada toolchain
+        run: |
+          alr --non-interactive toolchain --select \
+            gnat_native=16.1.0 \
+            gprbuild=26.0.1
       - name: Reproduce
         env:
           FLYOLOGY_CBOR_PUBLIC_ORIGIN: git+https://github.com/flyology-ada/flyology-cbor.git

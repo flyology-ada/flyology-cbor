@@ -11,8 +11,6 @@ mode=$1
 source_commit=$2
 index_commit=${3:-}
 project_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-crate_name=flyology_cbor
-version=0.1.0-dev
 
 case "$mode" in
   candidate) test -z "$index_commit" ;;
@@ -32,9 +30,37 @@ cleanup() {
 }
 trap cleanup EXIT HUP INT TERM
 
+verify_deployed_source() {
+  expected_root=$1
+  deployed_root=$2
+  (
+    cd "$expected_root"
+    find . -type f -print | LC_ALL=C sort |
+      while IFS= read -r relative_path; do
+        if [ "$relative_path" = ./alire.toml ]; then
+          continue
+        fi
+        if [ ! -f "$deployed_root/$relative_path" ] ||
+           ! cmp -s "$relative_path" "$deployed_root/$relative_path" ||
+           { [ -x "$relative_path" ] && [ ! -x "$deployed_root/$relative_path" ]; } ||
+           { [ ! -x "$relative_path" ] && [ -x "$deployed_root/$relative_path" ]; }; then
+          echo "deployed source differs from pristine archive: $relative_path" >&2
+          exit 1
+        fi
+      done
+  )
+}
+
 source_root="$temporary_root/source"
 mkdir -p "$source_root"
 git -C "$project_root" archive --format=tar "$source_commit" | tar -xf - -C "$source_root"
+
+crate_name=$(sed -n 's/^name = "\([^"]*\)"$/\1/p' "$source_root/alire.toml")
+version=$(sed -n 's/^version = "\([^"]*\)"$/\1/p' "$source_root/alire.toml")
+if [ -z "$crate_name" ] || [ -z "$version" ]; then
+  echo "release manifest must declare one literal crate name and version" >&2
+  exit 1
+fi
 
 if find "$source_root" -name alire.lock -o -name alire.lock.yaml | grep . >/dev/null; then
   echo "release archive contains a host-local Alire lock" >&2
@@ -95,6 +121,19 @@ mkdir -p "$settings_root"
 alr --non-interactive --settings="$settings_root" index --reset-community
 alr --non-interactive --settings="$settings_root" index \
   --add="file:$index_root" --name=flyology_cbor_candidate --before=community
+
+deployment_root="$temporary_root/deployment"
+mkdir -p "$deployment_root"
+(
+  cd "$deployment_root"
+  deployment=$(alr --non-interactive --settings="$settings_root" get --dirname "$crate_name=$version")
+  alr --non-interactive --settings="$settings_root" get --only "$crate_name=$version"
+  case "$deployment" in
+    /*) deployed_source=$deployment ;;
+    *) deployed_source="$deployment_root/$deployment" ;;
+  esac
+  verify_deployed_source "$source_root" "$deployed_source"
+)
 
 client_root="$temporary_root/installed-client"
 cp -R "$source_root/tests/installed-client" "$client_root"

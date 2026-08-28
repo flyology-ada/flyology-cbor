@@ -4,6 +4,11 @@ set -eu
 project_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$project_root"
 
+if ! command -v rg >/dev/null 2>&1; then
+  echo "ripgrep is required for the release-policy scans" >&2
+  exit 1
+fi
+
 alr build
 alr exec -- gprbuild -f -p -j0 -P tests/flyology_cbor_tests.gpr
 "$project_root/tests/bin/flyology_cbor_tests"
@@ -11,6 +16,7 @@ alr exec -- gprbuild -f -p -j0 -P tests/flyology_cbor_tests.gpr
 alr exec -- gprbuild -f -p -j0 \
   -P tests/installed-client/flyology_cbor_installed_client.gpr
 "$project_root/tests/installed-client/bin/flyology_cbor_installed_client"
+"$project_root/scripts/check-public-units.sh"
 
 if rg -n 'Flyology_Serde|Type_IR|Reflection|Flyology_Wire|Flyology_JSON|Ada\.Task' \
   src alire.toml flyology_cbor.gpr; then
