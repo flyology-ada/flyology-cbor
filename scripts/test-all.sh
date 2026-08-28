@@ -4,6 +4,7 @@ set -eu
 project_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$project_root"
 
+alr build
 alr exec -- gprbuild -f -p -j0 -P tests/flyology_cbor_tests.gpr
 "$project_root/tests/bin/flyology_cbor_tests"
 
