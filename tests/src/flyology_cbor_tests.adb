@@ -338,6 +338,118 @@ procedure Flyology_CBOR_Tests is
          "parser completed state");
    end Test_Parser_Transcript;
 
+   procedure Test_Split_Head_Provenance is
+      Empty : constant Byte_Array (1 .. 0) := [];
+
+      procedure Check_Head (Input : Byte_Array) is
+      begin
+         for Split in 1 .. Input'Length - 1 loop
+            declare
+               Parser     : Flyology_CBOR.Parsing.Parser (4);
+               Diagnostic : Flyology_CBOR.Errors.Diagnostic;
+               Result     : Flyology_CBOR.Parsing.Step_Result;
+               Cut        : constant Offset := Input'First + Offset (Split) - 1;
+               Event_Source : Flyology_CBOR.Parsing.Source_Range;
+            begin
+               Flyology_CBOR.Parsing.Initialize (Parser, Parser_Profile, Diagnostic);
+               Flyology_CBOR.Parsing.Step (Parser, Empty, False, Result);
+               Check
+                 (Result.Outcome = Flyology_CBOR.Parsing.Event_Ready
+                  and then Flyology_CBOR.Parsing.Kind (Result.Item)
+                    = Flyology_CBOR.Parsing.Document_Begin,
+                  "split head document begin");
+
+               Flyology_CBOR.Parsing.Step
+                 (Parser, Input (Input'First .. Cut), False, Result);
+               Check
+                 (Result.Outcome = Flyology_CBOR.Parsing.Need_Input,
+                  "split head prefix needs input");
+               Check
+                 (Result.Consumed = Ada.Streams.Stream_Element_Count (Split),
+                  "split head prefix consumed");
+
+               Flyology_CBOR.Parsing.Step
+                 (Parser, Input (Cut + 1 .. Input'Last), True, Result);
+               Check
+                 (Result.Outcome = Flyology_CBOR.Parsing.Event_Ready
+                  and then Flyology_CBOR.Parsing.Kind (Result.Item)
+                    = Flyology_CBOR.Parsing.Unsigned_Value,
+                  "split head produces unsigned event");
+               Event_Source := Flyology_CBOR.Parsing.Source (Result.Item);
+               Check
+                 (Event_Source.First = 0
+                  and then Event_Source.Octet_Length
+                    = Interfaces.Unsigned_64 (Input'Length),
+                  "split head retains complete source range");
+               Check
+                 (not Flyology_CBOR.Parsing.Has_Raw_Slice (Result.Item),
+                  "split head has no borrowed raw slice");
+            end;
+         end loop;
+      end Check_Head;
+
+      procedure Check_Invalid_Simple is
+         Input      : constant Byte_Array (51 .. 52) := [16#F8#, 16#1F#];
+         Parser     : Flyology_CBOR.Parsing.Parser (2);
+         Diagnostic : Flyology_CBOR.Errors.Diagnostic;
+         Result     : Flyology_CBOR.Parsing.Step_Result;
+      begin
+         Flyology_CBOR.Parsing.Initialize (Parser, Parser_Profile, Diagnostic);
+         Flyology_CBOR.Parsing.Step (Parser, Empty, False, Result);
+         Flyology_CBOR.Parsing.Step (Parser, Input (51 .. 51), False, Result);
+         Check
+           (Result.Outcome = Flyology_CBOR.Parsing.Need_Input,
+            "split invalid simple prefix");
+         Flyology_CBOR.Parsing.Step (Parser, Input (52 .. 52), True, Result);
+         Check
+           (Result.Outcome = Flyology_CBOR.Parsing.Step_Failed
+            and then Result.Diagnostic.Code = Flyology_CBOR.Errors.Invalid_Simple_Value
+            and then Result.Diagnostic.Offset = 0
+            and then Result.Diagnostic.Construct_Offset = 0,
+            "split invalid simple anchor");
+      end Check_Invalid_Simple;
+
+      procedure Check_Invalid_String_Chunk is
+         Input : constant Byte_Array (61 .. 64) := [16#5F#, 16#79#, 0, 0];
+      begin
+         for Split in 1 .. 2 loop
+            declare
+               Parser     : Flyology_CBOR.Parsing.Parser (2);
+               Diagnostic : Flyology_CBOR.Errors.Diagnostic;
+               Result     : Flyology_CBOR.Parsing.Step_Result;
+               Cut        : constant Offset := 61 + Offset (Split);
+            begin
+               Flyology_CBOR.Parsing.Initialize (Parser, Parser_Profile, Diagnostic);
+               Flyology_CBOR.Parsing.Step (Parser, Empty, False, Result);
+               Flyology_CBOR.Parsing.Step (Parser, Input (61 .. 61), False, Result);
+               Check
+                 (Result.Outcome = Flyology_CBOR.Parsing.Event_Ready,
+                  "indefinite byte string begin");
+               Flyology_CBOR.Parsing.Step (Parser, Input (62 .. Cut), False, Result);
+               Check
+                 (Result.Outcome = Flyology_CBOR.Parsing.Need_Input,
+                  "split wrong string chunk prefix");
+               Flyology_CBOR.Parsing.Step (Parser, Input (Cut + 1 .. 64), True, Result);
+               Check
+                 (Result.Outcome = Flyology_CBOR.Parsing.Step_Failed
+                  and then Result.Diagnostic.Code = Flyology_CBOR.Errors.Invalid_String_Chunk
+                  and then Result.Diagnostic.Offset = 1
+                  and then Result.Diagnostic.Construct_Offset = 1,
+                  "split wrong string chunk anchor");
+            end;
+         end loop;
+      end Check_Invalid_String_Chunk;
+   begin
+      Check_Head ([41 => 16#18#, 42 => 16#18#]);
+      Check_Head ([41 => 16#19#, 42 => 1, 43 => 0]);
+      Check_Head ([41 => 16#1A#, 42 => 0, 43 => 1, 44 => 0, 45 => 0]);
+      Check_Head
+        ([41 => 16#1B#, 42 => 0, 43 => 0, 44 => 0, 45 => 0,
+          46 => 0, 47 => 0, 48 => 0, 49 => 1]);
+      Check_Invalid_Simple;
+      Check_Invalid_String_Chunk;
+   end Test_Split_Head_Provenance;
+
    procedure Expect_Parser_Error
      (Input             : Byte_Array;
       Expected          : Flyology_CBOR.Errors.Error_Code;
@@ -684,6 +796,7 @@ procedure Flyology_CBOR_Tests is
 begin
    Test_Values_And_Numbers;
    Test_Parser_Transcript;
+   Test_Split_Head_Provenance;
    Test_Parser_Failures_And_Drain;
    Test_All_Initial_Octets;
    Test_Bounded_Writer;

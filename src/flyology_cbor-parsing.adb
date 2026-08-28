@@ -794,7 +794,8 @@ package body Flyology_CBOR.Parsing is
       if Head_Status /= Head_Ready then
          return;
       end if;
-      Head_Length := Self.Current_Offset - First;
+      First := Self.Header_Start;
+      Head_Length := Self.Current_Offset - Self.Header_Start;
 
       if Is_Indefinite then
          if Major = 7 then
