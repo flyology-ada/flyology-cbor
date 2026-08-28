@@ -549,6 +549,87 @@ procedure Flyology_CBOR_Tests is
       end;
    end Test_Parser_Failures_And_Drain;
 
+   procedure Test_Drain_Pending_Failure is
+      Bad_Input  : constant Byte_Array (81 .. 81) := [16#1C#];
+      True_Input : constant Byte_Array (91 .. 91) := [16#F5#];
+      Empty      : constant Byte_Array (1 .. 0) := [];
+      Seed       : Flyology_CBOR.Parsing.Parser (1);
+      Parser     : Flyology_CBOR.Parsing.Parser (1);
+      Aborter    : Flyology_CBOR.Parsing.Parser (1);
+      Diagnostic : Flyology_CBOR.Errors.Diagnostic;
+      Step_Item  : Flyology_CBOR.Parsing.Step_Result;
+      Result     : Flyology_CBOR.Parsing.Drain_Result;
+      Events     : Flyology_CBOR.Parsing.Event_Array (31 .. 32);
+
+      procedure Enter_Pending (Target : in out Flyology_CBOR.Parsing.Parser) is
+      begin
+         Flyology_CBOR.Parsing.Initialize (Target, Parser_Profile, Diagnostic);
+         Events := [others => Step_Item.Item];
+         Flyology_CBOR.Parsing.Drain
+           (Target, Bad_Input, True, Events (31 .. 31), Result);
+         Check
+           (Result.Stop = Flyology_CBOR.Parsing.Output_Full
+            and then Result.Produced = 1
+            and then Result.Consumed = 1,
+            "drain retains failure after full prefix");
+         Check
+           (Flyology_CBOR.Parsing.Kind (Events (31))
+              = Flyology_CBOR.Parsing.Document_Begin
+            and then Flyology_CBOR.Parsing.Kind (Events (32))
+              = Flyology_CBOR.Parsing.True_Value,
+            "drain mutates only eligible prefix");
+         Check
+           (Flyology_CBOR.Parsing.State (Target)
+              = Flyology_CBOR.Parsing.Failure_Pending,
+            "drain enters failure pending");
+         Check
+           (Flyology_CBOR.Parsing.Terminal_Diagnostic (Target).Code
+              = Flyology_CBOR.Errors.Reserved_Additional_Information,
+            "pending terminal diagnostic");
+      end Enter_Pending;
+   begin
+      Flyology_CBOR.Parsing.Initialize (Seed, Parser_Profile, Diagnostic);
+      Flyology_CBOR.Parsing.Step (Seed, Empty, False, Step_Item);
+      Flyology_CBOR.Parsing.Step (Seed, True_Input, True, Step_Item);
+      Check
+        (Step_Item.Outcome = Flyology_CBOR.Parsing.Event_Ready
+         and then Flyology_CBOR.Parsing.Kind (Step_Item.Item)
+           = Flyology_CBOR.Parsing.True_Value,
+         "seed suffix event");
+
+      Enter_Pending (Parser);
+      Flyology_CBOR.Parsing.Drain (Parser, Empty, True, Events, Result);
+      Check
+        (Result.Stop = Flyology_CBOR.Parsing.Drain_Failed
+         and then Result.Consumed = 0
+         and then Result.Produced = 0
+         and then Result.Diagnostic.Code
+           = Flyology_CBOR.Errors.Reserved_Additional_Information,
+         "pending failure publishes without input or events");
+      Check
+        (Flyology_CBOR.Parsing.Kind (Events (31))
+           = Flyology_CBOR.Parsing.Document_Begin
+         and then Flyology_CBOR.Parsing.Kind (Events (32))
+           = Flyology_CBOR.Parsing.True_Value,
+         "pending failure preserves event array");
+      Check
+        (Flyology_CBOR.Parsing.State (Parser) = Flyology_CBOR.Parsing.Failed,
+         "pending publication enters failed");
+      Flyology_CBOR.Parsing.Reset (Parser, Parser_Profile, Diagnostic);
+      Check_Clear (Diagnostic, "reset after pending publication");
+      Check
+        (Flyology_CBOR.Parsing.State (Parser) = Flyology_CBOR.Parsing.Ready,
+         "reset returns parser to ready");
+
+      Enter_Pending (Aborter);
+      Flyology_CBOR.Parsing.Abort_Document (Aborter);
+      Check
+        (Flyology_CBOR.Parsing.State (Aborter) = Flyology_CBOR.Parsing.Failed
+         and then Flyology_CBOR.Parsing.Terminal_Diagnostic (Aborter).Code
+           = Flyology_CBOR.Errors.Reserved_Additional_Information,
+         "abort promotes pending failure without replacing it");
+   end Test_Drain_Pending_Failure;
+
    procedure Test_All_Initial_Octets is
       Empty : constant Byte_Array (1 .. 0) := [];
    begin
@@ -798,6 +879,7 @@ begin
    Test_Parser_Transcript;
    Test_Split_Head_Provenance;
    Test_Parser_Failures_And_Drain;
+   Test_Drain_Pending_Failure;
    Test_All_Initial_Octets;
    Test_Bounded_Writer;
    Test_Writer_Lifecycle;

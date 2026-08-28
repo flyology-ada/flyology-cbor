@@ -985,6 +985,127 @@ package body Flyology_CBOR.Parsing is
       One      : Step_Result;
       Last     : Ada.Streams.Stream_Element_Offset;
       Empty    : constant Ada.Streams.Stream_Element_Array (1 .. 0) := [];
+
+      type Probe_Checkpoint is record
+         Current_State       : Parser_State;
+         Last_Diagnostic     : Errors.Diagnostic;
+         Current_Offset      : Byte_Offset;
+         Final_Latched       : Boolean;
+         Document_Started    : Boolean;
+         Root_Complete       : Boolean;
+         Document_End_Sent   : Boolean;
+         Depth               : Natural;
+         Top_Valid           : Boolean;
+         Top                 : Syntax_Frame;
+         Parent_Valid        : Boolean;
+         Parent              : Syntax_Frame;
+         Active_String       : String_Mode;
+         String_Remaining    : Values.Argument;
+         String_Payload_First : Byte_Offset;
+         Header              : Header_Buffer;
+         Header_Have         : Natural range 0 .. 9;
+         Header_Need         : Natural range 0 .. 9;
+         Header_Start        : Byte_Offset;
+         Header_Was_Split    : Boolean;
+         Text_Carry          : Scalar_Octets;
+         Text_Carry_Length   : Natural range 0 .. 4;
+         Text_Carry_Need     : Natural range 0 .. 4;
+         Text_Carry_Start    : Byte_Offset;
+         UTF8_Failure_Pending : Boolean;
+         UTF8_Failure_Offset : Byte_Offset;
+         UTF8_Failure_Construct : Byte_Offset;
+      end record;
+
+      procedure Capture (Item : out Probe_Checkpoint) is
+      begin
+         Item.Current_State := Self.Current_State;
+         Item.Last_Diagnostic := Self.Last_Diagnostic;
+         Item.Current_Offset := Self.Current_Offset;
+         Item.Final_Latched := Self.Final_Latched;
+         Item.Document_Started := Self.Document_Started;
+         Item.Root_Complete := Self.Root_Complete;
+         Item.Document_End_Sent := Self.Document_End_Sent;
+         Item.Depth := Self.Depth;
+         Item.Top_Valid := Self.Depth > 0;
+         if Item.Top_Valid then
+            Item.Top := Self.Stack (Self.Depth);
+         end if;
+         Item.Parent_Valid := Self.Depth > 1;
+         if Item.Parent_Valid then
+            Item.Parent := Self.Stack (Self.Depth - 1);
+         end if;
+         Item.Active_String := Self.Active_String;
+         Item.String_Remaining := Self.String_Remaining;
+         Item.String_Payload_First := Self.String_Payload_First;
+         Item.Header := Self.Header;
+         Item.Header_Have := Self.Header_Have;
+         Item.Header_Need := Self.Header_Need;
+         Item.Header_Start := Self.Header_Start;
+         Item.Header_Was_Split := Self.Header_Was_Split;
+         Item.Text_Carry := Self.Text_Carry;
+         Item.Text_Carry_Length := Self.Text_Carry_Length;
+         Item.Text_Carry_Need := Self.Text_Carry_Need;
+         Item.Text_Carry_Start := Self.Text_Carry_Start;
+         Item.UTF8_Failure_Pending := Self.UTF8_Failure_Pending;
+         Item.UTF8_Failure_Offset := Self.UTF8_Failure_Offset;
+         Item.UTF8_Failure_Construct := Self.UTF8_Failure_Construct;
+      end Capture;
+
+      procedure Restore (Item : Probe_Checkpoint) is
+      begin
+         Self.Current_State := Item.Current_State;
+         Self.Last_Diagnostic := Item.Last_Diagnostic;
+         Self.Current_Offset := Item.Current_Offset;
+         Self.Final_Latched := Item.Final_Latched;
+         Self.Document_Started := Item.Document_Started;
+         Self.Root_Complete := Item.Root_Complete;
+         Self.Document_End_Sent := Item.Document_End_Sent;
+         Self.Depth := Item.Depth;
+         if Item.Top_Valid then
+            Self.Stack (Item.Depth) := Item.Top;
+         end if;
+         if Item.Parent_Valid then
+            Self.Stack (Item.Depth - 1) := Item.Parent;
+         end if;
+         Self.Active_String := Item.Active_String;
+         Self.String_Remaining := Item.String_Remaining;
+         Self.String_Payload_First := Item.String_Payload_First;
+         Self.Header := Item.Header;
+         Self.Header_Have := Item.Header_Have;
+         Self.Header_Need := Item.Header_Need;
+         Self.Header_Start := Item.Header_Start;
+         Self.Header_Was_Split := Item.Header_Was_Split;
+         Self.Text_Carry := Item.Text_Carry;
+         Self.Text_Carry_Length := Item.Text_Carry_Length;
+         Self.Text_Carry_Need := Item.Text_Carry_Need;
+         Self.Text_Carry_Start := Item.Text_Carry_Start;
+         Self.UTF8_Failure_Pending := Item.UTF8_Failure_Pending;
+         Self.UTF8_Failure_Offset := Item.UTF8_Failure_Offset;
+         Self.UTF8_Failure_Construct := Item.UTF8_Failure_Construct;
+      end Restore;
+
+      procedure Retain_Immediate_Failure is
+         Checkpoint : Probe_Checkpoint;
+      begin
+         Capture (Checkpoint);
+         if Consumed = Ada.Streams.Stream_Element_Count (Input'Length) then
+            Step (Self, Empty, End_Of_Input, One);
+         else
+            Step
+              (Self,
+               Input
+                 (Input'First + Ada.Streams.Stream_Element_Offset (Consumed) .. Input'Last),
+               End_Of_Input,
+               One);
+         end if;
+
+         if One.Outcome = Step_Failed then
+            Consumed := Consumed + One.Consumed;
+            Self.Current_State := Failure_Pending;
+         else
+            Restore (Checkpoint);
+         end if;
+      end Retain_Immediate_Failure;
    begin
       Errors.Clear (Result.Diagnostic);
       Result :=
@@ -1018,6 +1139,7 @@ package body Flyology_CBOR.Parsing is
                  (Events'First + Ada.Streams.Stream_Element_Offset (Produced)) := One.Item;
                Produced := Produced + 1;
                if Produced = Ada.Streams.Stream_Element_Count (Events'Length) then
+                  Retain_Immediate_Failure;
                   Result.Stop := Output_Full;
                   exit;
                end if;
