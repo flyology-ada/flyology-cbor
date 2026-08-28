@@ -33,27 +33,29 @@ trap cleanup EXIT HUP INT TERM
 verify_deployed_source() {
   expected_root=$1
   deployed_root=$2
+  archive_file_list=$3
   (
     cd "$expected_root"
-    find . -type f -print | LC_ALL=C sort |
-      while IFS= read -r relative_path; do
-        if [ "$relative_path" = ./alire.toml ]; then
-          continue
-        fi
-        if [ ! -f "$deployed_root/$relative_path" ] ||
-           ! cmp -s "$relative_path" "$deployed_root/$relative_path" ||
-           { [ -x "$relative_path" ] && [ ! -x "$deployed_root/$relative_path" ]; } ||
-           { [ ! -x "$relative_path" ] && [ -x "$deployed_root/$relative_path" ]; }; then
-          echo "deployed source differs from pristine archive: $relative_path" >&2
-          exit 1
-        fi
-      done
+    while IFS= read -r relative_path; do
+      if [ "$relative_path" = ./alire.toml ]; then
+        continue
+      fi
+      if [ ! -f "$deployed_root/$relative_path" ] ||
+         ! cmp -s "$relative_path" "$deployed_root/$relative_path" ||
+         { [ -x "$relative_path" ] && [ ! -x "$deployed_root/$relative_path" ]; } ||
+         { [ ! -x "$relative_path" ] && [ -x "$deployed_root/$relative_path" ]; }; then
+        echo "deployed source differs from pristine archive: $relative_path" >&2
+        exit 1
+      fi
+    done <"$archive_file_list"
   )
 }
 
 source_root="$temporary_root/source"
 mkdir -p "$source_root"
 git -C "$project_root" archive --format=tar "$source_commit" | tar -xf - -C "$source_root"
+archive_file_list="$temporary_root/archive-files"
+(cd "$source_root" && find . -type f -print | LC_ALL=C sort >"$archive_file_list")
 
 crate_name=$(sed -n 's/^name = "\([^"]*\)"$/\1/p' "$source_root/alire.toml")
 version=$(sed -n 's/^version = "\([^"]*\)"$/\1/p' "$source_root/alire.toml")
@@ -132,7 +134,7 @@ mkdir -p "$deployment_root"
     /*) deployed_source=$deployment ;;
     *) deployed_source="$deployment_root/$deployment" ;;
   esac
-  verify_deployed_source "$source_root" "$deployed_source"
+  verify_deployed_source "$source_root" "$deployed_source" "$archive_file_list"
 )
 
 client_root="$temporary_root/installed-client"
