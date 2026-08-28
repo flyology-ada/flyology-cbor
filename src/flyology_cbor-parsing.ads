@@ -280,5 +280,8 @@ private
       Text_Carry_Length   : Natural range 0 .. 4 := 0;
       Text_Carry_Need     : Natural range 0 .. 4 := 0;
       Text_Carry_Start    : Byte_Offset := 0;
+      UTF8_Failure_Pending : Boolean := False;
+      UTF8_Failure_Offset : Byte_Offset := 0;
+      UTF8_Failure_Construct : Byte_Offset := 0;
    end record;
 end Flyology_CBOR.Parsing;

@@ -45,6 +45,9 @@ package body Flyology_CBOR.Parsing is
       Self.Text_Carry_Length := 0;
       Self.Text_Carry_Need := 0;
       Self.Text_Carry_Start := 0;
+      Self.UTF8_Failure_Pending := False;
+      Self.UTF8_Failure_Offset := 0;
+      Self.UTF8_Failure_Construct := 0;
       Errors.Clear (Self.Last_Diagnostic);
    end Clear_Parser;
 
@@ -508,6 +511,29 @@ package body Flyology_CBOR.Parsing is
             end;
          end if;
 
+         if Self.UTF8_Failure_Pending then
+            while Input_Available and then Self.String_Remaining > 0 loop
+               if not Consume_Byte (Octet) then
+                  return;
+               end if;
+               Self.String_Remaining := Self.String_Remaining - 1;
+            end loop;
+            if Self.String_Remaining = 0 then
+               UTF8_Failure
+                 (Self.UTF8_Failure_Offset,
+                  Self.UTF8_Failure_Construct);
+            elsif End_Of_Input then
+               Fail
+                 (Errors.Truncated_Input,
+                  Self.Current_Offset,
+                  True,
+                  Self.String_Payload_First);
+            else
+               Clear_Result (Need_Input);
+            end if;
+            return;
+         end if;
+
          if Self.Active_String in Definite_Byte_String | Byte_String_Chunk then
             if not Input_Available then
                if End_Of_Input then
@@ -563,7 +589,11 @@ package body Flyology_CBOR.Parsing is
             Self.Text_Carry_Length := 1;
             Self.Text_Carry_Need := Needed_Octets (Octet);
             if Self.Text_Carry_Need = 0 then
-               UTF8_Failure (Start, Start);
+               Self.UTF8_Failure_Pending := True;
+               Self.UTF8_Failure_Offset := Start;
+               Self.UTF8_Failure_Construct := Start;
+               Self.Text_Carry_Length := 0;
+               Emit_String_Fragment;
                return;
             elsif Self.Text_Carry_Need = 1 then
                Self.Text_Carry_Length := 0;
@@ -596,7 +626,12 @@ package body Flyology_CBOR.Parsing is
             if not Valid_Continuation
               (Self.Text_Carry (1), Self.Text_Carry_Length + 1, Octet)
             then
-               UTF8_Failure (Start, Start);
+               Self.UTF8_Failure_Pending := True;
+               Self.UTF8_Failure_Offset := Start;
+               Self.UTF8_Failure_Construct := Start;
+               Self.Text_Carry_Length := 0;
+               Self.Text_Carry_Need := 0;
+               Emit_String_Fragment;
                return;
             end if;
             Self.Text_Carry_Length := Self.Text_Carry_Length + 1;

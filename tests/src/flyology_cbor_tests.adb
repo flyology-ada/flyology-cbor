@@ -381,6 +381,7 @@ procedure Flyology_CBOR_Tests is
       Diagnostic : Flyology_CBOR.Errors.Diagnostic;
       Result     : Flyology_CBOR.Parsing.Drain_Result;
       Input      : constant Byte_Array (91 .. 93) := [16#82#, 1, 2];
+      Empty      : constant Byte_Array (1 .. 0) := [];
    begin
       Expect_Parser_Error ([16#1C#], Flyology_CBOR.Errors.Reserved_Additional_Information, 0, 0);
       Expect_Parser_Error ([16#1F#], Flyology_CBOR.Errors.Invalid_Indefinite_Item, 0, 0);
@@ -390,6 +391,28 @@ procedure Flyology_CBOR_Tests is
       Expect_Parser_Error ([16#63#, 16#C2#], Flyology_CBOR.Errors.Truncated_Input, 2, 1);
       Expect_Parser_Error
         ([16#63#, 16#C2#, 16#20#], Flyology_CBOR.Errors.Truncated_Input, 3, 1);
+
+      declare
+         Split_Parser : Flyology_CBOR.Parsing.Parser (2);
+         Split_Result : Flyology_CBOR.Parsing.Step_Result;
+         Split_Input  : constant Byte_Array (31 .. 33) := [16#63#, 16#C2#, 16#20#];
+      begin
+         Flyology_CBOR.Parsing.Initialize (Split_Parser, Parser_Profile, Diagnostic);
+         Flyology_CBOR.Parsing.Step (Split_Parser, Empty, False, Split_Result);
+         Flyology_CBOR.Parsing.Step (Split_Parser, Split_Input, False, Split_Result);
+         Check (Split_Result.Consumed = 1, "split truncation consumes text head");
+         Flyology_CBOR.Parsing.Step
+           (Split_Parser, Split_Input (32 .. 33), False, Split_Result);
+         Check
+           (Split_Result.Outcome = Flyology_CBOR.Parsing.Need_Input,
+            "malformed text waits for truncation precedence");
+         Flyology_CBOR.Parsing.Step (Split_Parser, Empty, True, Split_Result);
+         Check
+           (Split_Result.Outcome = Flyology_CBOR.Parsing.Step_Failed
+            and then Split_Result.Diagnostic.Code = Flyology_CBOR.Errors.Truncated_Input
+            and then Split_Result.Diagnostic.Offset = 3,
+            "split truncation matches monolithic precedence");
+      end;
       Expect_Parser_Error ([1, 2], Flyology_CBOR.Errors.Trailing_Input, 1, 1);
 
       Flyology_CBOR.Parsing.Initialize (Parser, Parser_Profile, Diagnostic);
