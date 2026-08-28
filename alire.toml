@@ -1,0 +1,20 @@
+name = "flyology_cbor"
+description = "Streaming caller-driven CBOR parsing and writing for Ada"
+version = "0.1.0-dev"
+
+authors = ["Yurii Rashkovskii"]
+maintainers = ["Yurii Rashkovskii <yrashk@gmail.com>"]
+maintainers-logins = ["yrashk"]
+licenses = "MIT OR Apache-2.0"
+website = ""
+tags = ["ada", "cbor", "streaming", "parser", "writer"]
+
+[[depends-on]]
+gnat = ">=13 & <17"
+
+[[actions]]
+type = "test"
+command = ["./scripts/test-all.sh"]
+
+[build-switches]
+"*" = { Compile_Checks = "warnings" }
