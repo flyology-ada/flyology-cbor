@@ -1,0 +1,30 @@
+# Flyology CBOR
+
+> Experimental streaming CBOR parser and transactional writer for Ada.
+
+Flyology CBOR 0.1.0-dev is a local reviewed candidate. It is not available from a public GitHub repository or Alire index. The bounded parser and writer allocate no heap storage. Callers select every profile and syntax-depth bound explicitly. A Drain caller supplies event storage, and bounded writing callers select output capacity.
+
+## Documentation
+
+- [Overview](/): project boundary and design summary
+- [Guide](/guide/): task-oriented entry points
+- [Getting started](/guide/getting-started/): build and run maintained examples
+- [Parsing](/guide/parsing/): Step, Drain, events, fragments, and lifecycle
+- [Writing](/guide/writing/): bounded, allocating, and external transactional writers
+- [Values and numbers](/guide/values-and-numbers/): raw CBOR values and checked conversion
+- [Profiles and errors](/guide/profiles-and-errors/): explicit behavior identity and diagnostics
+- [Architecture](/architecture/): storage, ownership, and publication boundaries
+- [Support](/support/): current evidence and limitations
+- [API reference](/api/): generated GNATdoc contracts
+
+## Current boundary
+
+- Parser events remain provisional until Document_Complete.
+- Borrowed fragments refer only to the exact unchanged input from the producing call.
+- Negative integers retain the raw CBOR argument for the mathematical value -1-n.
+- Number helpers provide checked signed, unsigned, and Binary64 conversion.
+- Floating values retain binary16, binary32, or binary64 width and exact bits.
+- Tags remain syntax and carry no schema, Type IR, Reflection, or Wire identity.
+- Ordinary Compact preserves caller order but is not canonical CBOR.
+- The parser has no DOM or collector. The bounded core performs no allocation.
+- Public repository creation, Alire publication, hosted CI, and downstream migration remain unauthorized.

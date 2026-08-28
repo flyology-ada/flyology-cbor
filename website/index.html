@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Technical documentation for the experimental Flyology CBOR candidate: caller-driven parsing and transactional writing for Ada.">
+  <meta name="theme-color" content="#f5f2e9">
+  <title>Flyology CBOR · Streaming CBOR for Ada</title>
+  <link rel="icon" href="assets/brand/flyology-primary-icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/styles/site.css">
+  <link rel="stylesheet" href="assets/styles/cbor.css">
+  <script src="assets/scripts/ada-highlight.js"></script>
+  <script src="assets/scripts/site.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <nav class="site-nav" aria-label="Primary navigation">
+      <a class="brand" href="./" aria-label="Flyology CBOR home">
+        <img src="assets/brand/flyology-mark-transparent.svg" alt=""><span>Flyology CBOR</span>
+      </a>
+      <ul class="nav-links" data-nav-links>
+        <li><a href="./" aria-current="page">Overview</a></li>
+        <li><a href="guide/">Guide</a></li>
+        <li><a href="architecture/">Architecture</a></li>
+        <li><a href="support/">Support</a></li>
+        <li><a href="api/">API</a></li>
+      </ul>
+      <div class="nav-tools">
+        <button class="icon-button" type="button" data-theme-toggle><span class="visually-hidden" data-theme-label>Change theme</span><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21"/></svg></button>
+        <button class="menu-button" type="button" data-menu-toggle aria-expanded="false" aria-label="Toggle navigation"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h2M4 17h16"/></svg></button>
+      </div>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section class="cbor-hero page-shell">
+      <div>
+        <span class="eyebrow">Ada 2022 · RFC 8949 · experimental</span>
+        <h1>Streaming CBOR syntax for Ada</h1>
+        <p class="hero-lede">Flyology CBOR parses arbitrary byte chunks into provisional syntax events. Its writers
+          stage one complete document before publication. The bounded parser and writer allocate no heap storage.</p>
+        <div class="actions">
+          <a class="button button-primary" href="guide/getting-started/">Build the local candidate</a>
+          <a class="button button-secondary" href="guide/writing/">Review writer contracts</a>
+        </div>
+        <p class="release-note">0.1.0-dev is a local reviewed candidate. No public repository or Alire entry exists.</p>
+      </div>
+
+      <div class="cbor-hero-visual">
+        <figure class="stream-console">
+          <figcaption><span>arbitrary CBOR chunks</span><strong>exact byte offsets</strong></figcaption>
+          <div class="chunk-track" aria-label="One CBOR map split across four chunks">
+            <span class="chunk">A2 64 6E 61</span><span class="chunk chunk-split">6D 65 63 41</span>
+            <span class="chunk chunk-utf8">64 61 61 6E</span><span class="chunk">19 03 E8</span>
+          </div>
+          <div class="stream-arrow"><span>parser validates across chunks · parser retains no input reference</span></div>
+          <div class="event-track" aria-label="Selected parser events">
+            <span class="event-chip">Map_Begin</span><span class="event-chip">Text_String_Fragment</span>
+            <span class="event-chip">Unsigned_Value</span><span class="event-chip">Map_End</span>
+            <span class="event-chip">exact ranges</span><span class="event-chip">raw float bits</span>
+          </div>
+          <div class="acceptance-gate"><span>events are provisional</span><strong>Document_Complete → caller accepts candidate</strong></div>
+        </figure>
+      </div>
+    </section>
+
+    <section class="cbor-status" aria-label="Current design boundary">
+      <div class="cbor-status-inner page-shell">
+        <div class="cbor-status-item"><strong>Input</strong><span>Arbitrary-bound byte arrays and chunk schedules.</span></div>
+        <div class="cbor-status-item"><strong>Storage</strong><span>Caller-selected syntax depth; bounded writers also select output capacity.</span></div>
+        <div class="cbor-status-item"><strong>Values</strong><span>Raw integers, tags, simple values, and float bits.</span></div>
+        <div class="cbor-status-item"><strong>Boundary</strong><span>No schema model or traversal; no Wire, OS, or C dependency.</span></div>
+      </div>
+    </section>
+
+    <section class="cbor-section page-shell">
+      <div class="cbor-section-heading">
+        <div><span class="eyebrow">Writer</span><h2>Publish the whole document</h2></div>
+        <p>The bounded and allocating facades own unpublished staging. <code>Finish_Document</code> validates the
+          balanced CBOR item and is the only publication request. A failure or abort never makes a staged prefix
+          eligible as output.</p>
+      </div>
+      <div class="transaction-line" aria-label="Writer transaction lifecycle">
+        <div class="transaction-node">Initialize</div><div class="transaction-link"></div>
+        <div class="transaction-node">Begin_Document</div><div class="transaction-link"></div>
+        <div class="transaction-node">Stage bytes</div><div class="transaction-link"></div>
+        <div class="transaction-node publish">Finish_Document</div>
+      </div>
+      <p class="release-note">Abort or failure ends unpublished staging without publication.</p>
+    </section>
+
+    <section class="cbor-section page-shell">
+      <div class="cbor-section-heading">
+        <div><span class="eyebrow">Public layers</span><h2>Choose storage explicitly</h2></div>
+        <p>Flyology CBOR owns byte syntax and diagnostics. Your application owns transport buffers, the event array,
+          logical interpretation, and the decision to accept a decoded candidate.</p>
+      </div>
+      <div class="guide-grid">
+        <article class="guide-card"><h3>Streaming parser</h3><p>Use <code>Step</code> or <code>Drain</code> and process borrowed fragments in the producing input window.</p><p><a href="guide/parsing/">Parse CBOR →</a></p></article>
+        <article class="guide-card"><h3>Bounded writer</h3><p>Own a fixed staging buffer with observable unpublished length and Completed-only output.</p><p><a href="guide/writing/">Write CBOR →</a></p></article>
+        <article class="guide-card"><h3>Raw values</h3><p>Preserve CBOR integer arguments, tag numbers, simple codes, and float widths before interpretation.</p><p><a href="guide/values-and-numbers/">Inspect values →</a></p></article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer"><div class="footer-inner"><span>Streaming CBOR syntax for Ada.</span><div class="footer-links"><a href="guide/">Guide</a><a href="architecture/">Architecture</a><a href="support/">Support</a><a href="api/">API</a></div></div></footer>
+</body>
+</html>

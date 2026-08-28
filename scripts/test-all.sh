@@ -19,6 +19,7 @@ alr exec -- gprbuild -f -p -j0 \
 alr exec -- gprbuild -f -p -j0 \
   -P tests/no-allocation/flyology_cbor_no_allocation.gpr
 "$project_root/tests/no-allocation/bin/flyology_cbor_no_allocation"
+"$project_root/scripts/test-examples.sh"
 "$project_root/scripts/check-public-units.sh"
 
 if rg -n 'Flyology_Serde|Type_IR|Reflection|Flyology_Wire|Flyology_JSON|Ada\.Task' \
