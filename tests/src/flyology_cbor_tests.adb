@@ -18,6 +18,7 @@ procedure Flyology_CBOR_Tests is
    use type Ada.Streams.Stream_Element_Count;
    use type Flyology_CBOR.Bounded_Writing.Writer_State;
    use type Flyology_CBOR.Errors.Error_Code;
+   use type Flyology_CBOR.Errors.Coordinate_Kind;
    use type Flyology_CBOR.Numbers.Binary64.Conversion_Status;
    use type Flyology_CBOR.Parsing.Drain_Stop;
    use type Flyology_CBOR.Parsing.Event_Kind;
@@ -561,6 +562,78 @@ procedure Flyology_CBOR_Tests is
       Check (Flyology_CBOR.Bounded_Writing.Staged_Length (Tiny) = 0, "abort reset staged");
    end Test_Writer_Lifecycle;
 
+   procedure Test_Writer_Failures is
+      Diagnostic : Flyology_CBOR.Errors.Diagnostic;
+      Bad_UTF8   : constant Byte_Array (5 .. 6) := [16#C2#, 16#20#];
+   begin
+      declare
+         Zero : Flyology_CBOR.Bounded_Writing.Writer (0, 1);
+      begin
+         Flyology_CBOR.Bounded_Writing.Initialize (Zero, Writer_Profile, Diagnostic);
+         Flyology_CBOR.Bounded_Writing.Begin_Document (Zero, Diagnostic);
+         Flyology_CBOR.Bounded_Writing.Put_Null (Zero, Diagnostic);
+         Check
+           (Diagnostic.Code = Flyology_CBOR.Errors.Destination_Exhausted,
+            "zero-capacity exhaustion");
+         Check (Flyology_CBOR.Bounded_Writing.Staged_Length (Zero) = 0, "zero staged prefix");
+      end;
+
+      declare
+         Shallow : Flyology_CBOR.Bounded_Writing.Writer (8, 0);
+      begin
+         Flyology_CBOR.Bounded_Writing.Initialize (Shallow, Writer_Profile, Diagnostic);
+         Flyology_CBOR.Bounded_Writing.Begin_Document (Shallow, Diagnostic);
+         Flyology_CBOR.Bounded_Writing.Begin_Array (Shallow, 0, Diagnostic);
+         Check (Diagnostic.Code = Flyology_CBOR.Errors.Depth_Exhausted, "writer depth bound");
+         Check (Flyology_CBOR.Bounded_Writing.Staged_Length (Shallow) = 0, "depth before write");
+      end;
+
+      declare
+         Text : Flyology_CBOR.Bounded_Writing.Writer (16, 1);
+      begin
+         Flyology_CBOR.Bounded_Writing.Initialize (Text, Writer_Profile, Diagnostic);
+         Flyology_CBOR.Bounded_Writing.Begin_Document (Text, Diagnostic);
+         Flyology_CBOR.Bounded_Writing.Begin_Text_String (Text, 2, Diagnostic);
+         Flyology_CBOR.Bounded_Writing.Put_Text_String_Fragment (Text, Bad_UTF8, Diagnostic);
+         Check (Diagnostic.Code = Flyology_CBOR.Errors.Invalid_UTF8, "writer UTF-8 failure");
+         Check
+           (Diagnostic.Coordinate = Flyology_CBOR.Errors.Writer_Token_Byte
+            and then Diagnostic.Offset = 1,
+            "writer UTF-8 coordinate");
+         Check (Flyology_CBOR.Bounded_Writing.Staged_Length (Text) = 1, "UTF-8 head retained");
+      end;
+
+      declare
+         Map : Flyology_CBOR.Bounded_Writing.Writer (16, 2);
+      begin
+         Flyology_CBOR.Bounded_Writing.Initialize (Map, Writer_Profile, Diagnostic);
+         Flyology_CBOR.Bounded_Writing.Begin_Document (Map, Diagnostic);
+         Flyology_CBOR.Bounded_Writing.Begin_Map (Map, 1, Diagnostic);
+         Flyology_CBOR.Bounded_Writing.Put_Unsigned (Map, 1, Diagnostic);
+         Flyology_CBOR.Bounded_Writing.End_Map (Map, Diagnostic);
+         Check
+           (Diagnostic.Code = Flyology_CBOR.Errors.Invalid_Writer_Grammar,
+            "writer rejects incomplete map pair");
+      end;
+
+      declare
+         Complete : Flyology_CBOR.Bounded_Writing.Writer (8, 1);
+         Small    : Byte_Array (3 .. 3) := [others => 16#AA#];
+         Produced : Ada.Streams.Stream_Element_Count;
+      begin
+         Flyology_CBOR.Bounded_Writing.Initialize (Complete, Writer_Profile, Diagnostic);
+         Flyology_CBOR.Bounded_Writing.Begin_Document (Complete, Diagnostic);
+         Flyology_CBOR.Bounded_Writing.Put_Unsigned (Complete, 1_000, Diagnostic);
+         Flyology_CBOR.Bounded_Writing.Finish_Document (Complete, Diagnostic);
+         Flyology_CBOR.Bounded_Writing.Copy_Output
+           (Complete, Small, Produced, Diagnostic);
+         Check
+           (Diagnostic.Code = Flyology_CBOR.Errors.Destination_Exhausted and then Produced = 0,
+            "copy rejects insufficient target");
+         Check (Small (3) = 16#AA#, "failed copy leaves target unchanged");
+      end;
+   end Test_Writer_Failures;
+
    procedure Test_Allocating_Writer is
       Writer     : Flyology_CBOR.Allocating_Writing.Writer (2);
       Diagnostic : Flyology_CBOR.Errors.Diagnostic;
@@ -615,6 +688,7 @@ begin
    Test_All_Initial_Octets;
    Test_Bounded_Writer;
    Test_Writer_Lifecycle;
+   Test_Writer_Failures;
    Test_Allocating_Writer;
    Test_External_Writer_Transactions;
    Ada.Text_IO.Put_Line ("flyology_cbor tests: PASS");
