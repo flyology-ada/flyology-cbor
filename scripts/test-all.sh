@@ -36,9 +36,3 @@ else
   echo "handwritten Ada exceeds 110 columns" >&2
   exit 1
 fi
-
-if command -v apm >/dev/null 2>&1; then
-  apm audit --ci
-else
-  echo "APM audit skipped in crate test action; agent-resources CI owns APM 0.28.0 reproduction"
-fi
