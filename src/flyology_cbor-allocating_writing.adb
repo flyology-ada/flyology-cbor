@@ -30,6 +30,11 @@ package body Flyology_CBOR.Allocating_Writing is
          return;
       end if;
 
+      if Target.Fail_Next_Allocation then
+         Target.Fail_Next_Allocation := False;
+         raise Storage_Error;
+      end if;
+
       for Octet of Data loop
          Target.Data.Append (Octet);
       end loop;

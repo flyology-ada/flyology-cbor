@@ -207,6 +207,7 @@ private
       Committed        : Ada.Streams.Stream_Element_Count := 0;
       Transaction_Open : Boolean := False;
       Storage_Failed   : Boolean := False;
+      Fail_Next_Allocation : Boolean := False;
    end record;
 
    procedure Destination_Begin

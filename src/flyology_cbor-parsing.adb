@@ -28,6 +28,7 @@ package body Flyology_CBOR.Parsing is
    procedure Clear_Parser (Self : in out Parser) is
    begin
       Self.Current_Offset := 0;
+      Self.Inspection_Count := 0;
       Self.Final_Latched := False;
       Self.Document_Started := False;
       Self.Root_Complete := False;
@@ -246,6 +247,9 @@ package body Flyology_CBOR.Parsing is
          end if;
 
          Value := Current_Byte;
+         if Self.Inspection_Count < Interfaces.Unsigned_64'Last then
+            Self.Inspection_Count := Self.Inspection_Count + 1;
+         end if;
          Consumed := Consumed + 1;
          Self.Current_Offset := Self.Current_Offset + 1;
          return True;
@@ -1086,13 +1090,34 @@ package body Flyology_CBOR.Parsing is
 
       procedure Retain_Immediate_Failure is
          Checkpoint : Probe_Checkpoint;
+         Available  : constant Interfaces.Unsigned_64 :=
+           Interfaces.Unsigned_64
+             (Ada.Streams.Stream_Element_Count (Input'Length) - Consumed);
       begin
-         --  A string fragment may consume the complete available payload window. Never speculate
-         --  there: rolling it back would rescan caller data and violate the linear work bound.
-         --  Outside string mode, one Step examines at most one nine-octet head or synthetic event.
-         if Self.Active_String /= No_String then
-            return;
-         end if;
+         --  Never roll back a scanned byte-string fragment. A text Step is bounded to one scalar
+         --  unless malformed input makes it drain the declared remainder before failing, so admit
+         --  that case only when the complete remainder is present. Final short spans fail by
+         --  arithmetic before scanning. Outside string mode, Step examines at most one head or
+         --  synthetic event.
+         case Self.Active_String is
+            when Definite_Byte_String | Byte_String_Chunk =>
+               if Self.String_Remaining /= 0
+                 and then not
+                   (End_Of_Input and then Available < Self.String_Remaining)
+                 and then Available <= Byte_Offset'Last - Self.Current_Offset
+               then
+                  return;
+               end if;
+            when Definite_Text_String | Text_String_Chunk =>
+               if Self.String_Remaining /= 0
+                 and then Available < Self.String_Remaining
+                 and then not End_Of_Input
+               then
+                  return;
+               end if;
+            when No_String =>
+               null;
+         end case;
 
          Capture (Checkpoint);
          if Consumed = Ada.Streams.Stream_Element_Count (Input'Length) then

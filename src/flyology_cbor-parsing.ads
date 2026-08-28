@@ -262,6 +262,7 @@ private
       Profile_Value       : Profiles.Parser_Profile;
       Last_Diagnostic     : Errors.Diagnostic;
       Current_Offset      : Byte_Offset := 0;
+      Inspection_Count    : Byte_Offset := 0;
       Final_Latched       : Boolean := False;
       Document_Started    : Boolean := False;
       Root_Complete       : Boolean := False;

@@ -89,6 +89,8 @@ if [ "$mode" = indexed ]; then
     exit 1
   fi
 fi
+resolved_index_commit=$(git -C "$index_root" rev-parse HEAD)
+echo "Using Alire index baseline $resolved_index_commit"
 
 manifest_directory="$index_root/index/fl/$crate_name"
 manifest_path="$manifest_directory/$crate_name-$version.toml"
@@ -163,4 +165,4 @@ cp -R "$source_root/tests/installed-client" "$client_root"
   fi
 )
 
-echo "$mode reproduction passed for source $source_commit${index_commit:+ and index $index_commit}"
+echo "$mode reproduction passed for source $source_commit and index baseline $resolved_index_commit"
