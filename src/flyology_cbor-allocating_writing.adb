@@ -30,12 +30,14 @@ package body Flyology_CBOR.Allocating_Writing is
          return;
       end if;
 
-      if Target.Fail_Next_Allocation then
-         Target.Fail_Next_Allocation := False;
-         raise Storage_Error;
-      end if;
-
       for Octet of Data loop
+         if Target.Allocation_Failure_Armed then
+            if Target.Appends_Before_Failure = 0 then
+               Target.Allocation_Failure_Armed := False;
+               raise Storage_Error;
+            end if;
+            Target.Appends_Before_Failure := Target.Appends_Before_Failure - 1;
+         end if;
          Target.Data.Append (Octet);
       end loop;
       Written := Ada.Streams.Stream_Element_Count (Data'Length);
@@ -397,6 +399,9 @@ package body Flyology_CBOR.Allocating_Writing is
       Result : Ada.Streams.Stream_Element_Array
         (1 .. Ada.Streams.Stream_Element_Offset (Self.Target.Committed));
    begin
+      if Self.Target.Fail_Output_Copy then
+         raise Storage_Error;
+      end if;
       if Self.Target.Committed > 0 then
          for Count in 0 .. Self.Target.Committed - 1 loop
             Result (1 + Ada.Streams.Stream_Element_Offset (Count)) :=

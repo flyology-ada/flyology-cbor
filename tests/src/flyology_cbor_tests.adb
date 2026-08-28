@@ -2120,6 +2120,28 @@ procedure Flyology_CBOR_Tests is
       begin
          Check (Retry'Length = 9 and then Retry (1) = 16#3B#, "allocating output copy retry");
       end;
+      declare
+         Copy   : Byte_Array (1 .. 9) := [others => 0];
+         Raised : Boolean := False;
+      begin
+         Flyology_CBOR.Allocating_Writing.Test_Support.Set_Output_Copy_Failure
+           (Writer, True);
+         begin
+            Copy := Flyology_CBOR.Allocating_Writing.Output (Writer);
+         exception
+            when Storage_Error =>
+               Raised := True;
+         end;
+         Check
+           (Raised
+            and then Flyology_CBOR.Allocating_Writing.State (Writer)
+              = Flyology_CBOR.Allocating_Writing.Completed,
+            "allocating copy failure leaves completed writer retryable");
+         Flyology_CBOR.Allocating_Writing.Test_Support.Set_Output_Copy_Failure
+           (Writer, False);
+         Copy := Flyology_CBOR.Allocating_Writing.Output (Writer);
+         Check (Copy (1) = 16#3B# and then Copy (9) = 16#FF#, "copy succeeds after failure");
+      end;
 
       declare
          Failing : Flyology_CBOR.Allocating_Writing.Writer (1);
@@ -2127,9 +2149,10 @@ procedure Flyology_CBOR_Tests is
       begin
          Flyology_CBOR.Allocating_Writing.Initialize (Failing, Writer_Profile, Diagnostic);
          Flyology_CBOR.Allocating_Writing.Begin_Document (Failing, Diagnostic);
-         Flyology_CBOR.Allocating_Writing.Test_Support.Fail_Next_Allocation (Failing);
+         Flyology_CBOR.Allocating_Writing.Test_Support.Fail_Allocation_After (Failing, 1);
          begin
-            Flyology_CBOR.Allocating_Writing.Put_Null (Failing, Diagnostic);
+            Flyology_CBOR.Allocating_Writing.Put_Negative_Argument
+              (Failing, Interfaces.Unsigned_64'Last, Diagnostic);
          exception
             when Storage_Error =>
                Raised := True;
@@ -2139,8 +2162,9 @@ procedure Flyology_CBOR_Tests is
             and then Flyology_CBOR.Allocating_Writing.State (Failing)
               = Flyology_CBOR.Allocating_Writing.Failed
             and then Flyology_CBOR.Allocating_Writing.Terminal_Diagnostic (Failing).Code
-              = Flyology_CBOR.Errors.Destination_Failed,
-            "allocating mutation failure poisons before reraising Storage_Error");
+              = Flyology_CBOR.Errors.Destination_Failed
+            and then Flyology_CBOR.Allocating_Writing.Test_Support.Retained_Length (Failing) = 0,
+            "partial allocating mutation rolls back and poisons before reraising");
          Flyology_CBOR.Allocating_Writing.Reset (Failing, Writer_Profile, Diagnostic);
          Check_Clear (Diagnostic, "allocating writer resets after storage failure");
       end;
@@ -2257,6 +2281,23 @@ procedure Flyology_CBOR_Tests is
             and then not Shared.Published,
             "destination detects same-target transaction misuse");
          External_Writing.Abort_Document (First, Shared, Diagnostic);
+      end;
+
+      declare
+         Switching : External_Writing.Writer (1);
+         Original  : External_Destination;
+         Different : External_Destination;
+      begin
+         External_Writing.Initialize (Switching, Writer_Profile, Diagnostic);
+         External_Writing.Begin_Document (Switching, Original, Diagnostic);
+         External_Writing.Put_Null (Switching, Different, Diagnostic);
+         Check
+           (Diagnostic.Code = Flyology_CBOR.Errors.Destination_Failed
+            and then External_Writing.State (Switching) = External_Writing.Failed
+            and then Original.Begun
+            and then not Original.Published
+            and then not Different.Published,
+            "destination rejects one writer switching targets mid-transaction");
       end;
    end Test_External_Writer_Transactions;
 
