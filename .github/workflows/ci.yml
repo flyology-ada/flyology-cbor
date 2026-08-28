@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flyology-cbor-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  complete-crate:
+    name: Complete crate / ${{ matrix.os }} / GNAT ${{ matrix.gnat }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, ubuntu-24.04]
+        gnat: [13.2.2, 14.2.1, 15.3.1, 16.1.0]
+    steps:
+      - name: Check out sources
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - name: Install Alire and GNAT
+        uses: alire-project/setup-alire@fc4c8ce471aa30b3af0d39ce15add1ee9eaf28f2
+        with:
+          version: 2.1.1
+          toolchain: gnat_native=${{ matrix.gnat }} gprbuild=26.0.1
+          cache: true
+      - name: Select exact Ada toolchain
+        run: |
+          alr --non-interactive toolchain --select \
+            gnat_native=${{ matrix.gnat }} \
+            gprbuild=26.0.1
+      - name: Test complete crate
+        run: alr test

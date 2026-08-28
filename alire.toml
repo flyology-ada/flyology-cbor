@@ -6,7 +6,6 @@ authors = ["Yurii Rashkovskii"]
 maintainers = ["Yurii Rashkovskii <yrashk@gmail.com>"]
 maintainers-logins = ["yrashk"]
 licenses = "MIT OR Apache-2.0"
-website = ""
 tags = ["ada", "cbor", "streaming", "parser", "writer"]
 
 [[depends-on]]

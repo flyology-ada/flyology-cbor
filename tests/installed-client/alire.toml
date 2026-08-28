@@ -1,0 +1,12 @@
+name = "flyology_cbor_installed_client"
+description = "External installed-client verification for flyology_cbor"
+version = "0.1.0-dev"
+licenses = "MIT OR Apache-2.0"
+authors = ["Flyology contributors"]
+maintainers = ["Flyology contributors <flyology@users.noreply.github.com>"]
+maintainers-logins = ["flyology-ada"]
+project-files = ["flyology_cbor_installed_client.gpr"]
+
+[[depends-on]]
+flyology_cbor = "=0.1.0-dev"
+gnat = ">=13 & <17"

@@ -1,0 +1,46 @@
+name: Release reproduction
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Verify a local candidate or an exact indexed milestone
+        required: true
+        type: choice
+        options: [candidate, indexed]
+      source_commit:
+        description: Exact flyology-cbor source commit
+        required: true
+        type: string
+      index_commit:
+        description: Exact Flyology index commit; required for indexed mode
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  reproduce:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Check out exact source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.source_commit }}
+      - name: Install Alire and GNAT
+        uses: alire-project/setup-alire@fc4c8ce471aa30b3af0d39ce15add1ee9eaf28f2
+        with:
+          version: 2.1.1
+          toolchain: gnat_native=16.1.0 gprbuild=26.0.1
+          cache: true
+      - name: Reproduce
+        env:
+          FLYOLOGY_CBOR_PUBLIC_ORIGIN: git+https://github.com/flyology-ada/flyology-cbor.git
+        run: >-
+          ./scripts/verify-release.sh
+          "${{ inputs.mode }}"
+          "${{ inputs.source_commit }}"
+          "${{ inputs.index_commit }}"

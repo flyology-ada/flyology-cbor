@@ -4,9 +4,9 @@
 caller-driven, allocation-free, and independent of Serde, Type IR, Reflection, Wire, Flyology tasking, operating
 system APIs, and C.
 
-The initial `0.1.0-dev` milestone is under architecture review. It is not published to GitHub or the Alire index.
-The current design proposal is recorded in
-[`docs/reviews/2026-08-27-initial-architecture-proposal.md`](docs/reviews/2026-08-27-initial-architecture-proposal.md).
+The `0.1.0-dev` declarations are frozen and the implementation is undergoing oracle and release review. The crate
+is not published to GitHub or the Alire index. The exact declaration freeze is recorded in
+[`docs/reviews/2026-08-27-declaration-freeze.md`](docs/reviews/2026-08-27-declaration-freeze.md).
 
 ## License
 
