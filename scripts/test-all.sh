@@ -27,7 +27,8 @@ if rg -n 'Flyology_Serde|Type_IR|Reflection|Flyology_Wire|Flyology_JSON|Ada\.Tas
   exit 1
 fi
 
-if rg -n '^with (Interfaces\.C|GNAT\.OS_Lib|System\.(OS|Tasking)|Ada\.Task)' src; then
+os_import_pattern='^[[:space:]]*((limited|private)[[:space:]]+)?with[[:space:]]+(Interfaces\.C|GNAT\.OS_Lib|System\.(OS|Tasking)|Ada\.Task)'
+if rg -n "$os_import_pattern" src; then
   echo "OS, C, or tasking import entered the runtime sources" >&2
   exit 1
 fi

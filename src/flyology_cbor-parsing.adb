@@ -1087,6 +1087,13 @@ package body Flyology_CBOR.Parsing is
       procedure Retain_Immediate_Failure is
          Checkpoint : Probe_Checkpoint;
       begin
+         --  A string fragment may consume the complete available payload window. Never speculate
+         --  there: rolling it back would rescan caller data and violate the linear work bound.
+         --  Outside string mode, one Step examines at most one nine-octet head or synthetic event.
+         if Self.Active_String /= No_String then
+            return;
+         end if;
+
          Capture (Checkpoint);
          if Consumed = Ada.Streams.Stream_Element_Count (Input'Length) then
             Step (Self, Empty, End_Of_Input, One);

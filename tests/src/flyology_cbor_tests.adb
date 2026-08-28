@@ -74,6 +74,7 @@ procedure Flyology_CBOR_Tests is
       Published   : Boolean := False;
       Fail_Begin  : Boolean := False;
       Fail_Write  : Boolean := False;
+      Raise_Write : Boolean := False;
       Write_Limit : Ada.Streams.Stream_Element_Count := 32;
       Fail_Commit : Boolean := False;
       Fail_Abort  : Boolean := False;
@@ -101,7 +102,9 @@ procedure Flyology_CBOR_Tests is
       Status  : out Flyology_CBOR.Destinations.Write_Status)
    is
    begin
-      if Target.Fail_Write or else not Target.Begun then
+      if Target.Raise_Write then
+         raise Constraint_Error with "test destination contract violation";
+      elsif Target.Fail_Write or else not Target.Begun then
          Written := 0;
          Status := Flyology_CBOR.Destinations.Write_Failed;
          return;
@@ -222,6 +225,27 @@ procedure Flyology_CBOR_Tests is
         (Unsigned_64_Conversions.Status (Unsigned)
          = Unsigned_64_Conversions.Negative_Value,
          "negative to unsigned rejected");
+      Unsigned_64_Conversions.Convert
+        (Flyology_CBOR.Values.Unsigned (Interfaces.Unsigned_64'Last), Unsigned);
+      Check
+        (Unsigned_64_Conversions.Status (Unsigned) = Unsigned_64_Conversions.Converted
+         and then Unsigned_64_Conversions.Value (Unsigned) = Interfaces.Unsigned_64'Last,
+         "unsigned maximum converts exactly");
+      Signed_64_Conversions.Convert
+        (Flyology_CBOR.Values.Unsigned
+           (Interfaces.Unsigned_64 (Interfaces.Integer_64'Last)),
+         Signed);
+      Check
+        (Signed_64_Conversions.Status (Signed) = Signed_64_Conversions.Converted
+         and then Signed_64_Conversions.Value (Signed) = Interfaces.Integer_64'Last,
+         "signed positive maximum converts exactly");
+      Signed_64_Conversions.Convert
+        (Flyology_CBOR.Values.Unsigned
+           (Interfaces.Unsigned_64 (Interfaces.Integer_64'Last) + 1),
+         Signed);
+      Check
+        (Signed_64_Conversions.Status (Signed) = Signed_64_Conversions.Above_Range,
+         "signed positive overflow is checked");
       Signed_128_Conversions.Convert
         (Flyology_CBOR.Values.Unsigned (Interfaces.Unsigned_64'Last), Signed_128);
       Check
@@ -577,8 +601,16 @@ procedure Flyology_CBOR_Tests is
           Flyology_CBOR.Parsing.Text_String_Fragment,
           Flyology_CBOR.Parsing.Text_String_Chunk_End,
           Flyology_CBOR.Parsing.Text_String_End,
-          Flyology_CBOR.Parsing.Document_End],
+         Flyology_CBOR.Parsing.Document_End],
          "indefinite text string");
+      Check_Transcript
+        ([16#62#, 16#C3#, 16#A9#],
+         [Flyology_CBOR.Parsing.Document_Begin,
+          Flyology_CBOR.Parsing.Text_String_Begin,
+          Flyology_CBOR.Parsing.Text_String_Fragment,
+          Flyology_CBOR.Parsing.Text_String_End,
+          Flyology_CBOR.Parsing.Document_End],
+         "definite text string");
       Check_Transcript
         ([16#82#, 16#40#, 16#60#],
          [Flyology_CBOR.Parsing.Document_Begin,
@@ -903,6 +935,17 @@ procedure Flyology_CBOR_Tests is
       Expect_Parser_Error ([16#A1#, 1], Flyology_CBOR.Errors.Truncated_Input, 2, 2);
       Expect_Parser_Error ([16#5F#, 16#60#], Flyology_CBOR.Errors.Invalid_String_Chunk, 1, 1);
       Expect_Parser_Error ([16#62#, 16#C2#, 16#20#], Flyology_CBOR.Errors.Invalid_UTF8, 2, 2);
+      Expect_Parser_Error ([16#61#, 16#80#], Flyology_CBOR.Errors.Invalid_UTF8, 1, 1);
+      Expect_Parser_Error ([16#61#, 16#C0#], Flyology_CBOR.Errors.Invalid_UTF8, 1, 1);
+      Expect_Parser_Error ([16#61#, 16#C2#], Flyology_CBOR.Errors.Invalid_UTF8, 2, 1);
+      Expect_Parser_Error
+        ([16#63#, 16#E0#, 16#9F#, 16#80#], Flyology_CBOR.Errors.Invalid_UTF8, 2, 2);
+      Expect_Parser_Error
+        ([16#63#, 16#ED#, 16#A0#, 16#80#], Flyology_CBOR.Errors.Invalid_UTF8, 2, 2);
+      Expect_Parser_Error
+        ([16#64#, 16#F0#, 16#8F#, 16#80#, 16#80#], Flyology_CBOR.Errors.Invalid_UTF8, 2, 2);
+      Expect_Parser_Error
+        ([16#64#, 16#F4#, 16#90#, 16#80#, 16#80#], Flyology_CBOR.Errors.Invalid_UTF8, 2, 2);
       Expect_Parser_Error ([16#63#, 16#C2#], Flyology_CBOR.Errors.Truncated_Input, 2, 1);
       Expect_Parser_Error
         ([16#63#, 16#C2#, 16#20#], Flyology_CBOR.Errors.Truncated_Input, 3, 1);
@@ -929,6 +972,52 @@ procedure Flyology_CBOR_Tests is
             "split truncation matches monolithic precedence");
       end;
       Expect_Parser_Error ([1, 2], Flyology_CBOR.Errors.Trailing_Input, 1, 1);
+
+      declare
+         Shallow      : Flyology_CBOR.Parsing.Parser (1);
+         Shallow_Step : Flyology_CBOR.Parsing.Step_Result;
+         Nested       : constant Byte_Array (71 .. 72) := [16#81#, 16#80#];
+      begin
+         Flyology_CBOR.Parsing.Initialize (Shallow, Parser_Profile, Diagnostic);
+         Flyology_CBOR.Parsing.Step (Shallow, Empty, False, Shallow_Step);
+         Flyology_CBOR.Parsing.Step (Shallow, Nested, True, Shallow_Step);
+         Flyology_CBOR.Parsing.Step (Shallow, Nested (72 .. 72), True, Shallow_Step);
+         Check
+           (Shallow_Step.Outcome = Flyology_CBOR.Parsing.Step_Failed
+            and then Shallow_Step.Diagnostic.Code = Flyology_CBOR.Errors.Depth_Exhausted
+            and then Shallow_Step.Diagnostic.Offset = 1,
+            "parser syntax depth fails at denied opener");
+      end;
+
+      declare
+         Deep         : Flyology_CBOR.Parsing.Parser (64);
+         Deep_Step    : Flyology_CBOR.Parsing.Step_Result;
+         Tag_Chain    : Byte_Array (1 .. 66) := [others => 16#C0#];
+         Deep_Consumed : Ada.Streams.Stream_Element_Count := 0;
+         Calls        : Natural := 0;
+      begin
+         Tag_Chain (66) := 16#F6#;
+         Flyology_CBOR.Parsing.Initialize (Deep, Parser_Profile, Diagnostic);
+         loop
+            Calls := Calls + 1;
+            Flyology_CBOR.Parsing.Step
+              (Deep,
+               Tag_Chain (Tag_Chain'First + Offset (Deep_Consumed) .. Tag_Chain'Last),
+               True,
+               Deep_Step);
+            Deep_Consumed := Deep_Consumed + Deep_Step.Consumed;
+            exit when Deep_Step.Outcome = Flyology_CBOR.Parsing.Step_Failed;
+            Check
+              (Deep_Step.Outcome = Flyology_CBOR.Parsing.Event_Ready,
+               "hostile tag chain progress");
+            Check (Calls <= 66, "hostile tag chain work bound");
+         end loop;
+         Check
+           (Deep_Step.Diagnostic.Code = Flyology_CBOR.Errors.Depth_Exhausted
+            and then Deep_Step.Diagnostic.Offset = 64
+            and then Deep_Consumed = 65,
+            "hostile tag chain exact depth denial");
+      end;
 
       Flyology_CBOR.Parsing.Initialize (Parser, Parser_Profile, Diagnostic);
       Events := [others => <>];
@@ -958,6 +1047,7 @@ procedure Flyology_CBOR_Tests is
       Seed       : Flyology_CBOR.Parsing.Parser (1);
       Parser     : Flyology_CBOR.Parsing.Parser (1);
       Aborter    : Flyology_CBOR.Parsing.Parser (1);
+      Resetter   : Flyology_CBOR.Parsing.Parser (1);
       Diagnostic : Flyology_CBOR.Errors.Diagnostic;
       Step_Item  : Flyology_CBOR.Parsing.Step_Result;
       Result     : Flyology_CBOR.Parsing.Drain_Result;
@@ -1030,6 +1120,13 @@ procedure Flyology_CBOR_Tests is
          and then Flyology_CBOR.Parsing.Terminal_Diagnostic (Aborter).Code
            = Flyology_CBOR.Errors.Reserved_Additional_Information,
          "abort promotes pending failure without replacing it");
+
+      Enter_Pending (Resetter);
+      Flyology_CBOR.Parsing.Reset (Resetter, Parser_Profile, Diagnostic);
+      Check_Clear (Diagnostic, "reset directly from failure pending");
+      Check
+        (Flyology_CBOR.Parsing.State (Resetter) = Flyology_CBOR.Parsing.Ready,
+         "direct pending reset returns parser to ready");
    end Test_Drain_Pending_Failure;
 
    procedure Test_Transport_Differential is
@@ -1045,7 +1142,7 @@ procedure Flyology_CBOR_Tests is
       subtype Tape is Flyology_CBOR.Parsing.Event_Array (201 .. 240);
 
       procedure Collect_Step
-        (Chunk_Size : Positive;
+        (Chunk_Size : Natural;
          Events     : out Tape;
          Count      : out Natural)
       is
@@ -1054,7 +1151,9 @@ procedure Flyology_CBOR_Tests is
          Result     : Flyology_CBOR.Parsing.Step_Result;
          Consumed   : Ada.Streams.Stream_Element_Count := 0;
          Window_End : Offset;
+         Window_Size : Positive;
          Calls      : Natural := 0;
+         Final_Seen : Boolean := False;
       begin
          Count := 0;
          Flyology_CBOR.Parsing.Initialize (Parser, Parser_Profile, Diagnostic);
@@ -1064,10 +1163,17 @@ procedure Flyology_CBOR_Tests is
             if Consumed = Ada.Streams.Stream_Element_Count (Input'Length) then
                Flyology_CBOR.Parsing.Step (Parser, Empty, True, Result);
             else
+               Window_Size :=
+                 (if Chunk_Size = 0
+                  then 1 + ((Calls * 7 + 3) mod Input'Length)
+                  else Chunk_Size);
                Window_End :=
-                 Offset'Min
-                   (Input'Last,
-                    Input'First + Offset (Consumed) + Offset (Chunk_Size) - 1);
+                 (if Final_Seen
+                  then Input'Last
+                  else Offset'Min
+                    (Input'Last,
+                     Input'First + Offset (Consumed) + Offset (Window_Size) - 1));
+               Final_Seen := Final_Seen or else Window_End = Input'Last;
                Flyology_CBOR.Parsing.Step
                  (Parser,
                   Input (Input'First + Offset (Consumed) .. Window_End),
@@ -1093,7 +1199,7 @@ procedure Flyology_CBOR_Tests is
       end Collect_Step;
 
       procedure Collect_Drain
-        (Chunk_Size : Positive;
+        (Chunk_Size : Natural;
          Capacity   : Positive;
          Events     : out Tape;
          Count      : out Natural)
@@ -1103,7 +1209,9 @@ procedure Flyology_CBOR_Tests is
          Result       : Flyology_CBOR.Parsing.Drain_Result;
          Consumed     : Ada.Streams.Stream_Element_Count := 0;
          Window_End   : Offset;
+         Window_Size  : Positive;
          Calls        : Natural := 0;
+         Final_Seen   : Boolean := False;
          Batch        : Flyology_CBOR.Parsing.Event_Array (501 .. 508);
       begin
          Count := 0;
@@ -1115,10 +1223,17 @@ procedure Flyology_CBOR_Tests is
                Flyology_CBOR.Parsing.Drain
                  (Parser, Empty, True, Batch (501 .. 500 + Offset (Capacity)), Result);
             else
+               Window_Size :=
+                 (if Chunk_Size = 0
+                  then 1 + ((Calls * 11 + 5) mod Input'Length)
+                  else Chunk_Size);
                Window_End :=
-                 Offset'Min
-                   (Input'Last,
-                    Input'First + Offset (Consumed) + Offset (Chunk_Size) - 1);
+                 (if Final_Seen
+                  then Input'Last
+                  else Offset'Min
+                    (Input'Last,
+                     Input'First + Offset (Consumed) + Offset (Window_Size) - 1));
+               Final_Seen := Final_Seen or else Window_End = Input'Last;
                Flyology_CBOR.Parsing.Drain
                  (Parser,
                   Input (Input'First + Offset (Consumed) .. Window_End),
@@ -1168,6 +1283,74 @@ procedure Flyology_CBOR_Tests is
                Check
                  (Flyology_CBOR.Parsing.Source (Left) = Flyology_CBOR.Parsing.Source (Right),
                   Context & " event source");
+               case Flyology_CBOR.Parsing.Kind (Left) is
+                  when Flyology_CBOR.Parsing.Unsigned_Value
+                     | Flyology_CBOR.Parsing.Negative_Integer_Value =>
+                     Check
+                       (Flyology_CBOR.Values.Kind
+                          (Flyology_CBOR.Parsing.Integer_Data (Left))
+                          = Flyology_CBOR.Values.Kind
+                            (Flyology_CBOR.Parsing.Integer_Data (Right))
+                        and then Flyology_CBOR.Values.Integer_Argument
+                          (Flyology_CBOR.Parsing.Integer_Data (Left))
+                          = Flyology_CBOR.Values.Integer_Argument
+                            (Flyology_CBOR.Parsing.Integer_Data (Right)),
+                        Context & " integer payload");
+                  when Flyology_CBOR.Parsing.Byte_String_Begin
+                     | Flyology_CBOR.Parsing.Byte_String_Chunk_Begin
+                     | Flyology_CBOR.Parsing.Text_String_Begin
+                     | Flyology_CBOR.Parsing.Text_String_Chunk_Begin
+                     | Flyology_CBOR.Parsing.Array_Begin
+                     | Flyology_CBOR.Parsing.Map_Begin =>
+                     Check
+                       (Flyology_CBOR.Values.Kind
+                          (Flyology_CBOR.Parsing.Declared_Length (Left))
+                          = Flyology_CBOR.Values.Kind
+                            (Flyology_CBOR.Parsing.Declared_Length (Right)),
+                        Context & " declared length kind");
+                     if Flyology_CBOR.Values.Kind
+                       (Flyology_CBOR.Parsing.Declared_Length (Left))
+                       = Flyology_CBOR.Values.Definite_Length
+                     then
+                        Check
+                          (Flyology_CBOR.Values.Length
+                             (Flyology_CBOR.Parsing.Declared_Length (Left))
+                             = Flyology_CBOR.Values.Length
+                               (Flyology_CBOR.Parsing.Declared_Length (Right)),
+                           Context & " declared length payload");
+                     end if;
+                  when Flyology_CBOR.Parsing.Tag_Begin =>
+                     Check
+                       (Flyology_CBOR.Parsing.Tag_Data (Left)
+                          = Flyology_CBOR.Parsing.Tag_Data (Right),
+                        Context & " tag payload");
+                  when Flyology_CBOR.Parsing.Simple_Value =>
+                     Check
+                       (Flyology_CBOR.Parsing.Simple_Data (Left)
+                          = Flyology_CBOR.Parsing.Simple_Data (Right),
+                        Context & " simple payload");
+                  when Flyology_CBOR.Parsing.Float_Value =>
+                     Check
+                       (Flyology_CBOR.Values.Width
+                          (Flyology_CBOR.Parsing.Float_Data (Left))
+                          = Flyology_CBOR.Values.Width
+                            (Flyology_CBOR.Parsing.Float_Data (Right))
+                        and then Flyology_CBOR.Values.Bits
+                          (Flyology_CBOR.Parsing.Float_Data (Left))
+                          = Flyology_CBOR.Values.Bits
+                            (Flyology_CBOR.Parsing.Float_Data (Right)),
+                        Context & " float payload");
+                  when Flyology_CBOR.Parsing.Byte_String_Fragment
+                     | Flyology_CBOR.Parsing.Text_String_Fragment =>
+                     Check
+                       (Flyology_CBOR.Parsing.Fragment_Kind (Left)
+                          = Flyology_CBOR.Parsing.Fragment_Kind (Right)
+                        and then Flyology_CBOR.Parsing.Fragment_Source (Left)
+                          = Flyology_CBOR.Parsing.Fragment_Source (Right),
+                        Context & " fragment payload");
+                  when others =>
+                     null;
+               end case;
             end;
          end loop;
       end Compare;
@@ -1185,6 +1368,13 @@ procedure Flyology_CBOR_Tests is
             Collect_Drain (Chunk_Size, Capacity, Actual, Actual_Count);
             Compare (Reference, Reference_Count, Actual, Actual_Count, "Drain schedule");
          end loop;
+      end loop;
+      Collect_Step (0, Actual, Actual_Count);
+      Compare (Reference, Reference_Count, Actual, Actual_Count, "nonuniform Step schedule");
+      for Capacity in 1 .. 8 loop
+         Collect_Drain (0, Capacity, Actual, Actual_Count);
+         Compare
+           (Reference, Reference_Count, Actual, Actual_Count, "nonuniform Drain schedule");
       end loop;
 
       declare
@@ -1462,6 +1652,7 @@ procedure Flyology_CBOR_Tests is
       declare
          Complete : Flyology_CBOR.Bounded_Writing.Writer (8, 1);
          Small    : Byte_Array (3 .. 3) := [others => 16#AA#];
+         Retry    : Byte_Array (11 .. 18) := [others => 16#AA#];
          Produced : Ada.Streams.Stream_Element_Count;
       begin
          Flyology_CBOR.Bounded_Writing.Initialize (Complete, Writer_Profile, Diagnostic);
@@ -1474,6 +1665,56 @@ procedure Flyology_CBOR_Tests is
            (Diagnostic.Code = Flyology_CBOR.Errors.Destination_Exhausted and then Produced = 0,
             "copy rejects insufficient target");
          Check (Small (3) = 16#AA#, "failed copy leaves target unchanged");
+         Flyology_CBOR.Bounded_Writing.Copy_Output
+           (Complete, Retry, Produced, Diagnostic);
+         Check
+            (Diagnostic.Code = Flyology_CBOR.Errors.No_Error
+             and then Produced = 3
+            and then Retry (11) = 16#19#
+            and then Retry (12) = 16#03#
+            and then Retry (13) = 16#E8#
+             and then Retry (14) = 16#AA#,
+            "completed copy remains retryable after capacity denial");
+      end;
+
+      for Capacity in 0 .. 9 loop
+         declare
+            Prefix : Flyology_CBOR.Bounded_Writing.Writer (Capacity, 1);
+         begin
+            Flyology_CBOR.Bounded_Writing.Initialize (Prefix, Writer_Profile, Diagnostic);
+            Flyology_CBOR.Bounded_Writing.Begin_Document (Prefix, Diagnostic);
+            Flyology_CBOR.Bounded_Writing.Put_Negative_Argument
+              (Prefix, Interfaces.Unsigned_64'Last, Diagnostic);
+            if Capacity < 9 then
+               Check
+                 (Diagnostic.Code = Flyology_CBOR.Errors.Destination_Exhausted
+                  and then Flyology_CBOR.Bounded_Writing.Staged_Length (Prefix)
+                    = Ada.Streams.Stream_Element_Count (Capacity),
+                  "every accepted writer prefix is retained exactly");
+            else
+               Check
+                 (Diagnostic.Code = Flyology_CBOR.Errors.No_Error
+                  and then Flyology_CBOR.Bounded_Writing.Staged_Length (Prefix) = 9,
+                  "complete nine-byte head fits exact capacity");
+            end if;
+         end;
+      end loop;
+
+      declare
+         Deep : Flyology_CBOR.Bounded_Writing.Writer (80, 64);
+      begin
+         Flyology_CBOR.Bounded_Writing.Initialize (Deep, Writer_Profile, Diagnostic);
+         Flyology_CBOR.Bounded_Writing.Begin_Document (Deep, Diagnostic);
+         for Index in 1 .. 64 loop
+            Flyology_CBOR.Bounded_Writing.Begin_Tag (Deep, 0, Diagnostic);
+            Check_Clear (Diagnostic, "writer maximum-depth tag chain");
+         end loop;
+         Flyology_CBOR.Bounded_Writing.Begin_Tag (Deep, 0, Diagnostic);
+         Check
+           (Diagnostic.Code = Flyology_CBOR.Errors.Depth_Exhausted
+            and then Diagnostic.Offset = 64
+            and then Flyology_CBOR.Bounded_Writing.Staged_Length (Deep) = 64,
+            "writer hostile tag chain exact work/depth denial");
       end;
    end Test_Writer_Failures;
 
@@ -1565,6 +1806,23 @@ procedure Flyology_CBOR_Tests is
          and then External_Writing.State (Writer) = External_Writing.Failed
          and then not Target.Published,
          "explicit abort failure is primary and unpublished");
+
+      declare
+         Raising_Writer : External_Writing.Writer (1);
+         Raising_Target : External_Destination;
+         Raised         : Boolean := False;
+      begin
+         External_Writing.Initialize (Raising_Writer, Writer_Profile, Diagnostic);
+         External_Writing.Begin_Document (Raising_Writer, Raising_Target, Diagnostic);
+         Raising_Target.Raise_Write := True;
+         begin
+            External_Writing.Put_Null (Raising_Writer, Raising_Target, Diagnostic);
+         exception
+            when Constraint_Error =>
+               Raised := True;
+         end;
+         Check (Raised, "raising destination callback propagates its exception");
+      end;
    end Test_External_Writer_Transactions;
 
 begin
