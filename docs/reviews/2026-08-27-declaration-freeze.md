@@ -1,6 +1,7 @@
 # Public declaration freeze — 2026-08-27
 
-Status: frozen for initial implementation. Publication and downstream migration remain unauthorized.
+Status: frozen for initial implementation. Public repository and Pages publication were authorized later; Alire
+publication and downstream migration remain unauthorized.
 
 ## Exact authority
 
@@ -18,7 +19,7 @@ semantics requires a new consumer and oracle P0/P1/P2 review before implementati
 
 - Serde CBOR oracle: source commit `1106d4ee6a0bc82e98808b5dbc56fd7f052ba386`, tree
   `17b82a30e04273db7c3ec3be5053adad63ce9a31`.
-- Current Flyology JSON structural reference: source commit
+- Flyology JSON structural reference reviewed at declaration freeze: source commit
   `a9924828840d3617492c4e473b8b87d3bf0a011f`.
 - Historical indexed JSON evidence only: source commit
   `f8a4a0331a03552733e7bd8531552ba0c21f8997`, index commit
@@ -41,9 +42,9 @@ The coordinated Serde consumer review reports P0 none and P1 none at this bounda
 - proving and optional construct offsets are sufficient for legacy error translation; and
 - suffix-preserving `Drain` supports caller-owned provisional replay.
 
-The release-shape review identified publication and reproduction gates, not declaration defects. Those gates
-remain open implementation obligations and must receive their own P0/P1/P2 review before a release candidate is
-frozen.
+The release-shape review identified publication and reproduction gates, not declaration defects. At declaration
+freeze, those gates remained implementation obligations and required their own P0/P1/P2 review before the
+implementation candidate could be frozen.
 
 ## Verification at freeze
 
@@ -81,5 +82,6 @@ The targetless writer engine, parser machinery, UTF-8 validator, and test hooks 
 no Serde, Type IR, Reflection, Wire, JSON, tasking, or oracle dependency. Canonical CBOR is unsupported and
 outside the ordinary compact profile.
 
-No GitHub repository has been created, no commit has been pushed, and no Alire index entry or index identity
-exists. This freeze does not authorize any of those actions or a Serde dependency change.
+At the time of this freeze, no GitHub repository, pushed commit, Alire index entry, or index identity existed. A
+later user authorization permits creation and push of the public repository and publication of its Pages website.
+This freeze still does not authorize an Alire index entry or a Serde dependency change.

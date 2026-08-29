@@ -4,6 +4,7 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Task-oriented guide to Flyology CBOR parsing, writing, profiles, raw values, and diagnostics.">
   <title>Guide · Flyology CBOR</title>
+  <link rel="canonical" href="https://cbor.flyology.org/guide/">
   <link rel="icon" href="../assets/brand/flyology-primary-icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../assets/styles/site.css"><link rel="stylesheet" href="../assets/styles/cbor.css">
   <script src="../assets/scripts/ada-highlight.js"></script><script src="../assets/scripts/site.js"></script>
@@ -12,7 +13,7 @@
   <a class="skip-link" href="#main">Skip to content</a>
   <header class="site-header"><nav class="site-nav" aria-label="Primary navigation">
     <a class="brand" href="../"><img src="../assets/brand/flyology-mark-transparent.svg" alt=""><span>Flyology CBOR</span></a>
-    <ul class="nav-links" data-nav-links><li><a href="../">Overview</a></li><li><details class="nav-dropdown" data-nav-dropdown><summary aria-current="location">Guide <svg aria-hidden="true" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m2.5 4.5 3 3 3.5-3"/></svg></summary><ul class="nav-dropdown-menu"><li><a href="./" aria-current="page">Guide overview</a></li><li><a href="getting-started/">Getting started</a></li><li><a href="parsing/">Parsing</a></li><li><a href="writing/">Writing</a></li><li><a href="values-and-numbers/">Values and numbers</a></li><li><a href="profiles-and-errors/">Profiles and errors</a></li></ul></details></li><li><a href="../architecture/">Architecture</a></li><li><a href="../support/">Support</a></li><li><a href="../api/">API</a></li></ul>
+    <ul class="nav-links" data-nav-links><li><a href="../">Overview</a></li><li><details class="nav-dropdown" data-nav-dropdown><summary aria-current="location">Guide <svg aria-hidden="true" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m2.5 4.5 3 3 3.5-3"/></svg></summary><ul class="nav-dropdown-menu"><li><a href="./" aria-current="page">Guide overview</a></li><li><a href="getting-started/">Getting started</a></li><li><a href="parsing/">Parsing</a></li><li><a href="writing/">Writing</a></li><li><a href="values-and-numbers/">Values and numbers</a></li><li><a href="profiles-and-errors/">Profiles and errors</a></li></ul></details></li><li><a href="../architecture/">Architecture</a></li><li><a href="../support/">Support</a></li><li><a href="../api/">API</a></li><li><a href="https://github.com/flyology-ada/flyology-cbor">GitHub</a></li></ul>
     <div class="nav-tools"><button class="icon-button" type="button" data-theme-toggle><span class="visually-hidden" data-theme-label>Change theme</span><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.64 5.64 7.2 7.2M16.8 16.8l1.56 1.56M18.36 5.64 16.8 7.2M7.2 16.8l-1.56 1.56"/><circle cx="12" cy="12" r="4"/></svg></button><button class="menu-button" type="button" data-menu-toggle aria-expanded="false" aria-label="Toggle navigation"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h2M4 17h16"/></svg></button></div>
   </nav></header>
   <main id="main">
@@ -25,7 +26,7 @@
         <article class="guide-card"><h3>3. Write a document</h3><p>Use <a data-api="Flyology_CBOR.Bounded_Writing"><code>Bounded_Writing</code></a>, allocating storage, or a caller-supplied destination transaction.</p><p><a href="writing/">Choose the writer boundary →</a></p></article>
         <article class="guide-card"><h3>4. Preserve raw values</h3><p>Keep <a data-api="Flyology_CBOR.Values"><code>Values</code></a> representation separate from checked integer and binary64 conversion.</p><p><a href="values-and-numbers/">Inspect and convert values →</a></p></article>
         <article class="guide-card"><h3>5. Select behavior explicitly</h3><p>Construct <a data-api="Flyology_CBOR.Profiles.Parser_Profile"><code>Parser_Profile</code></a> and <a data-api="Flyology_CBOR.Profiles.Writer_Profile"><code>Writer_Profile</code></a> without a public default.</p><p><a href="profiles-and-errors/">Choose profiles and read errors →</a></p></article>
-        <article class="guide-card"><h3>6. Check the boundary</h3><p>Review implemented support, maintained evidence, known omissions, and the unpublished dependency status.</p><p><a href="../support/">Check current support →</a></p></article>
+        <article class="guide-card"><h3>6. Check the boundary</h3><p>Review implemented support, maintained evidence, known omissions, public source availability, and Alire index status.</p><p><a href="../support/">Check current support →</a></p></article>
       </div>
     </section>
     <section class="cbor-section page-shell">
