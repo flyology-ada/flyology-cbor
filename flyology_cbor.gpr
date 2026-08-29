@@ -35,6 +35,7 @@ project Flyology_Cbor is
 
    package Documentation is
       for Output_Dir ("html") use "docs/api";
+      for Resources_Dir ("html") use "docs/gnatdoc/html";
    end Documentation;
 
 end Flyology_Cbor;

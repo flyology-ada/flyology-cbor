@@ -15,6 +15,11 @@
 
 .nav-links { gap: clamp(0.7rem, 1.45vw, 1.35rem); }
 
+.nav-dropdown > summary[aria-current="location"] {
+  color: var(--ink);
+  font-weight: 650;
+}
+
 .cbor-hero {
   display: grid;
   grid-template-columns: minmax(0, 0.95fr) minmax(25rem, 1.05fr);
@@ -226,13 +231,16 @@
 
 .transaction-line {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   align-items: center;
   margin-top: 3rem;
-  gap: 0.45rem;
+  padding: 0;
+  gap: 0.9rem;
+  list-style: none;
 }
 
 .transaction-node {
+  position: relative;
   padding: 0.85rem 0.5rem;
   border: 1px solid var(--line);
   border-radius: 0.45rem;
@@ -242,9 +250,18 @@
   text-align: center;
 }
 
+.transaction-node:not(:last-child)::after {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 0.23rem);
+  width: 0.45rem;
+  height: 1px;
+  background: var(--line);
+  content: "";
+}
+
 .transaction-node.publish { border-color: var(--cbor-mint); }
 .transaction-node.failure { border-color: var(--cbor-coral); }
-.transaction-link { height: 1px; background: var(--line); }
 
 .guide-hero {
   padding-block: clamp(4rem, 8vw, 7rem) 3rem;

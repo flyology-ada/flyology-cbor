@@ -1,16 +1,42 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Task-oriented guide to Flyology CBOR."><title>Guide · Flyology CBOR</title><link rel="icon" href="../assets/brand/flyology-primary-icon.svg" type="image/svg+xml"><link rel="stylesheet" href="../assets/styles/site.css"><link rel="stylesheet" href="../assets/styles/cbor.css"><script src="../assets/scripts/ada-highlight.js"></script><script src="../assets/scripts/site.js"></script></head>
-<body><a class="skip-link" href="#main">Skip to content</a>
-  <header class="site-header"><nav class="site-nav" aria-label="Primary navigation"><a class="brand" href="../"><img src="../assets/brand/flyology-mark-transparent.svg" alt=""><span>Flyology CBOR</span></a><ul class="nav-links" data-nav-links><li><a href="../">Overview</a></li><li><a href="./" aria-current="page">Guide</a></li><li><a href="../architecture/">Architecture</a></li><li><a href="../support/">Support</a></li><li><a href="../api/">API</a></li></ul><div class="nav-tools"><button class="icon-button" type="button" data-theme-toggle><span class="visually-hidden" data-theme-label>Change theme</span><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21"/></svg></button><button class="menu-button" type="button" data-menu-toggle aria-expanded="false" aria-label="Toggle navigation"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h2M4 17h16"/></svg></button></div></nav></header>
-  <main id="main" class="page-shell"><header class="doc-hero"><div><ol class="breadcrumb"><li><a href="../">Overview</a></li><li>Guide</li></ol><h1>Use the byte-syntax layer</h1></div><p class="doc-hero-copy">Select explicit profiles and capacities. Keep parser observations provisional until document acceptance, and publish writer output only after completion.</p></header>
-    <div class="guide-grid">
-      <article class="guide-card"><h2>1. Build the examples</h2><p>Build the local candidate and run maintained parser and writer programs.</p><p><a href="getting-started/">Getting started →</a></p></article>
-      <article class="guide-card"><h2>2. Parse chunks</h2><p>Drive <a data-api="Flyology_CBOR.Parsing.Step"><code>Step</code></a> or <a data-api="Flyology_CBOR.Parsing.Drain"><code>Drain</code></a> with caller-owned input and an event array.</p><p><a href="parsing/">Parsing →</a></p></article>
-      <article class="guide-card"><h2>3. Write a document</h2><p>Use bounded or allocating storage, or supply an external transaction.</p><p><a href="writing/">Writing →</a></p></article>
-      <article class="guide-card"><h2>4. Preserve raw values</h2><p>Read integer arguments, string lengths, tags, simple values, and float bits.</p><p><a href="values-and-numbers/">Values and numbers →</a></p></article>
-      <article class="guide-card"><h2>5. Handle failures</h2><p>Freeze a complete profile and use exact diagnostic coordinates.</p><p><a href="profiles-and-errors/">Profiles and errors →</a></p></article>
-    </div>
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Task-oriented guide to Flyology CBOR parsing, writing, profiles, raw values, and diagnostics.">
+  <title>Guide · Flyology CBOR</title>
+  <link rel="icon" href="../assets/brand/flyology-primary-icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/styles/site.css"><link rel="stylesheet" href="../assets/styles/cbor.css">
+  <script src="../assets/scripts/ada-highlight.js"></script><script src="../assets/scripts/site.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header"><nav class="site-nav" aria-label="Primary navigation">
+    <a class="brand" href="../"><img src="../assets/brand/flyology-mark-transparent.svg" alt=""><span>Flyology CBOR</span></a>
+    <ul class="nav-links" data-nav-links><li><a href="../">Overview</a></li><li><details class="nav-dropdown" data-nav-dropdown><summary aria-current="location">Guide <svg aria-hidden="true" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m2.5 4.5 3 3 3.5-3"/></svg></summary><ul class="nav-dropdown-menu"><li><a href="./" aria-current="page">Guide overview</a></li><li><a href="getting-started/">Getting started</a></li><li><a href="parsing/">Parsing</a></li><li><a href="writing/">Writing</a></li><li><a href="values-and-numbers/">Values and numbers</a></li><li><a href="profiles-and-errors/">Profiles and errors</a></li></ul></details></li><li><a href="../architecture/">Architecture</a></li><li><a href="../support/">Support</a></li><li><a href="../api/">API</a></li></ul>
+    <div class="nav-tools"><button class="icon-button" type="button" data-theme-toggle><span class="visually-hidden" data-theme-label>Change theme</span><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.64 5.64 7.2 7.2M16.8 16.8l1.56 1.56M18.36 5.64 16.8 7.2M7.2 16.8l-1.56 1.56"/><circle cx="12" cy="12" r="4"/></svg></button><button class="menu-button" type="button" data-menu-toggle aria-expanded="false" aria-label="Toggle navigation"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h2M4 17h16"/></svg></button></div>
+  </nav></header>
+  <main id="main">
+    <section class="guide-hero page-shell"><span class="eyebrow">Guide</span><h1>Choose a parsing or writing task.</h1><p>Start with the parser or writer boundary that your application controls. Each guide keeps storage, profiles, publication, and failure behavior explicit.</p></section>
+    <section class="cbor-section page-shell" aria-labelledby="task-guides-title">
+      <h2 id="task-guides-title" class="visually-hidden">Task guides</h2>
+      <div class="guide-grid">
+        <article class="guide-card"><h3>1. Get started</h3><p>Build the crate, construct every profile field, and run the maintained parser and writer examples.</p><p><a href="getting-started/">Build and run the examples →</a></p></article>
+        <article class="guide-card"><h3>2. Parse chunks</h3><p>Use <a data-api="Flyology_CBOR.Parsing"><code>Flyology_CBOR.Parsing</code></a> with arbitrary input bounds, provisional events, and exact byte offsets.</p><p><a href="parsing/">Control the parser →</a></p></article>
+        <article class="guide-card"><h3>3. Write a document</h3><p>Use <a data-api="Flyology_CBOR.Bounded_Writing"><code>Bounded_Writing</code></a>, allocating storage, or a caller-supplied destination transaction.</p><p><a href="writing/">Choose the writer boundary →</a></p></article>
+        <article class="guide-card"><h3>4. Preserve raw values</h3><p>Keep <a data-api="Flyology_CBOR.Values"><code>Values</code></a> representation separate from checked integer and binary64 conversion.</p><p><a href="values-and-numbers/">Inspect and convert values →</a></p></article>
+        <article class="guide-card"><h3>5. Select behavior explicitly</h3><p>Construct <a data-api="Flyology_CBOR.Profiles.Parser_Profile"><code>Parser_Profile</code></a> and <a data-api="Flyology_CBOR.Profiles.Writer_Profile"><code>Writer_Profile</code></a> without a public default.</p><p><a href="profiles-and-errors/">Choose profiles and read errors →</a></p></article>
+        <article class="guide-card"><h3>6. Check the boundary</h3><p>Review implemented support, maintained evidence, known omissions, and the unpublished dependency status.</p><p><a href="../support/">Check current support →</a></p></article>
+      </div>
+    </section>
+    <section class="cbor-section page-shell">
+      <div class="cbor-section-heading"><div><span class="eyebrow">Reading path</span><h2>Choose how much data to retain.</h2></div><p>The parser has no DOM or collector. A consumer can handle each event immediately, copy selected payloads into its own storage, or build a provisional candidate until the parser reports complete-document acceptance.</p></div>
+      <div class="boundary-grid">
+        <article class="boundary-card"><b>OBSERVE</b><h3>Read and discard</h3><p>Use <a data-api="Flyology_CBOR.Parsing.Drain"><code>Drain</code></a> to inspect a large stream with a bounded parser and caller-owned event array.</p></article>
+        <article class="boundary-card"><b>SELECT</b><h3>Retain a few values</h3><p>Copy only the text, bytes, numbers, or tags that the application needs.</p></article>
+        <article class="boundary-card"><b>BUILD</b><h3>Commit after acceptance</h3><p>Keep a private candidate provisional until the parser reports complete-document acceptance.</p></article>
+      </div>
+    </section>
   </main>
-  <footer class="site-footer"><div class="footer-inner"><span>The caller owns storage and interpretation.</span><div class="footer-links"><a href="../architecture/">Architecture</a><a href="../support/">Support</a><a href="../api/">API</a></div></div></footer>
-</body></html>
+  <footer class="site-footer"><div class="footer-inner"><span>The caller owns storage and interpretation.</span><div class="footer-links"><a href="parsing/">Parsing</a><a href="writing/">Writing</a><a href="../api/">API</a></div></div></footer>
+</body>
+</html>

@@ -85,7 +85,10 @@ async function declarationFor(entry) {
 
 const declarations = new Map();
 for (const candidates of candidatesByName.values()) {
-  for (const entry of candidates) declarations.set(entry.href, await declarationFor(entry));
+  for (const entry of candidates) {
+    const declaration = await declarationFor(entry);
+    if (declaration !== "") declarations.set(entry.href, declaration);
+  }
 }
 
 let resolvedCount = 0;

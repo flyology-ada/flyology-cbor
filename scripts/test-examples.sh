@@ -8,3 +8,4 @@ alr build
 alr exec -- gprbuild -f -p -j0 -P examples/flyology_cbor_examples.gpr
 "$project_root/examples/bin/streaming_parser"
 "$project_root/examples/bin/bounded_writer"
+"$project_root/examples/bin/landing_samples"

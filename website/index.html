@@ -21,13 +21,13 @@
       </a>
       <ul class="nav-links" data-nav-links>
         <li><a href="./" aria-current="page">Overview</a></li>
-        <li><a href="guide/">Guide</a></li>
+        <li><details class="nav-dropdown" data-nav-dropdown><summary>Guide <svg aria-hidden="true" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m2.5 4.5 3 3 3.5-3"/></svg></summary><ul class="nav-dropdown-menu"><li><a href="guide/">Guide overview</a></li><li><a href="guide/getting-started/">Getting started</a></li><li><a href="guide/parsing/">Parsing</a></li><li><a href="guide/writing/">Writing</a></li><li><a href="guide/values-and-numbers/">Values and numbers</a></li><li><a href="guide/profiles-and-errors/">Profiles and errors</a></li></ul></details></li>
         <li><a href="architecture/">Architecture</a></li>
         <li><a href="support/">Support</a></li>
         <li><a href="api/">API</a></li>
       </ul>
       <div class="nav-tools">
-        <button class="icon-button" type="button" data-theme-toggle><span class="visually-hidden" data-theme-label>Change theme</span><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21"/></svg></button>
+        <button class="icon-button" type="button" data-theme-toggle><span class="visually-hidden" data-theme-label>Change theme</span><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.64 5.64 7.2 7.2M16.8 16.8l1.56 1.56M18.36 5.64 16.8 7.2M7.2 16.8l-1.56 1.56"/><circle cx="12" cy="12" r="4"/></svg></button>
         <button class="menu-button" type="button" data-menu-toggle aria-expanded="false" aria-label="Toggle navigation"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h2M4 17h16"/></svg></button>
       </div>
     </nav>
@@ -41,10 +41,9 @@
         <p class="hero-lede">Flyology CBOR parses arbitrary byte chunks into provisional syntax events. Its writers
           stage one complete document before publication. The bounded parser and writer allocate no heap storage.</p>
         <div class="actions">
-          <a class="button button-primary" href="guide/getting-started/">Build the local candidate</a>
-          <a class="button button-secondary" href="guide/writing/">Review writer contracts</a>
+          <a class="button button-primary" href="guide/parsing/">Parser guide</a>
+          <a class="button button-secondary" href="guide/writing/">Writer guide</a>
         </div>
-        <p class="release-note">0.1.0-dev is a local reviewed candidate. No public repository or Alire entry exists.</p>
       </div>
 
       <div class="cbor-hero-visual">
@@ -62,6 +61,31 @@
           </div>
           <div class="acceptance-gate"><span>events are provisional</span><strong>Document_Complete → caller accepts candidate</strong></div>
         </figure>
+        <section class="cbor-code-pair" aria-labelledby="unsigned-example-title">
+          <h2 id="unsigned-example-title" class="visually-hidden">Separate unsigned 42 API example</h2>
+          <div class="code-window cbor-code-window">
+            <div class="code-titlebar"><div class="window-dots" aria-hidden="true"><span></span><span></span><span></span></div><span>Parse unsigned 42</span></div>
+            <pre><code class="language-ada" data-example-source="examples/landing_samples.adb" data-example-region="landing-parser">   --  The chunk is complete. Drain batches provisional events into the
+   --  caller-owned event array and reports complete-document acceptance.
+   Parsing.Drain
+     (Self         =&gt; Parser,
+      Input        =&gt; Input,
+      End_Of_Input =&gt; True,
+      Events       =&gt; Events,
+      Result       =&gt; Parse_Result);
+</code></pre>
+          </div>
+          <div class="code-window cbor-code-window cbor-code-window-number">
+            <div class="code-titlebar"><div class="window-dots" aria-hidden="true"><span></span><span></span><span></span></div><span>Write unsigned 42</span></div>
+            <pre><code class="language-ada" data-example-source="examples/landing_samples.adb" data-example-region="landing-writer">   --  Finish_Document makes the staged complete value eligible. Copy_Output
+   --  never exposes an incomplete prefix as successful output.
+   Writing.Begin_Document (Writer, Diagnostic);
+   Writing.Put_Unsigned (Writer, 42, Diagnostic);
+   Writing.Finish_Document (Writer, Diagnostic);
+   Writing.Copy_Output (Writer, Output, Produced, Diagnostic);
+</code></pre>
+          </div>
+        </section>
       </div>
     </section>
 
@@ -81,12 +105,12 @@
           balanced CBOR item and is the only publication request. A failure or abort never makes a staged prefix
           eligible as output.</p>
       </div>
-      <div class="transaction-line" aria-label="Writer transaction lifecycle">
-        <div class="transaction-node">Initialize</div><div class="transaction-link"></div>
-        <div class="transaction-node">Begin_Document</div><div class="transaction-link"></div>
-        <div class="transaction-node">Stage bytes</div><div class="transaction-link"></div>
-        <div class="transaction-node publish">Finish_Document</div>
-      </div>
+      <ol class="transaction-line" aria-label="Writer transaction lifecycle">
+        <li class="transaction-node">Initialize</li>
+        <li class="transaction-node">Begin_Document</li>
+        <li class="transaction-node">Stage bytes</li>
+        <li class="transaction-node publish">Finish_Document</li>
+      </ol>
       <p class="release-note">Abort or failure ends unpublished staging without publication.</p>
     </section>
 
@@ -97,7 +121,7 @@
           logical interpretation, and the decision to accept a decoded candidate.</p>
       </div>
       <div class="guide-grid">
-        <article class="guide-card"><h3>Streaming parser</h3><p>Use <code>Step</code> or <code>Drain</code> and process borrowed fragments in the producing input window.</p><p><a href="guide/parsing/">Parse CBOR →</a></p></article>
+        <article class="guide-card"><h3>Streaming parser</h3><p>Use <code>Step</code> or <code>Drain</code> and process borrowed fragments against the exact unchanged input passed to the producing call.</p><p><a href="guide/parsing/">Parse CBOR →</a></p></article>
         <article class="guide-card"><h3>Bounded writer</h3><p>Own a fixed staging buffer with observable unpublished length and Completed-only output.</p><p><a href="guide/writing/">Write CBOR →</a></p></article>
         <article class="guide-card"><h3>Raw values</h3><p>Preserve CBOR integer arguments, tag numbers, simple codes, and float widths before interpretation.</p><p><a href="guide/values-and-numbers/">Inspect values →</a></p></article>
       </div>
