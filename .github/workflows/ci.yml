@@ -36,4 +36,12 @@ jobs:
             gnat_native=${{ matrix.gnat }} \
             gprbuild=26.0.1
       - name: Test complete crate
-        run: alr test
+        run: |
+          if ! alr test; then
+            if test -f alire/alr_test_local.log; then
+              cat alire/alr_test_local.log
+            else
+              echo "Alire test log was not created" >&2
+            fi
+            exit 1
+          fi
