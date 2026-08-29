@@ -4,10 +4,30 @@ set -eu
 project_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$project_root"
 
-if ! command -v rg >/dev/null 2>&1; then
-  echo "ripgrep is required for the release-policy scans" >&2
-  exit 1
+if command -v rg >/dev/null 2>&1; then
+  scan_backend() {
+    rg -n "$@"
+  }
+else
+  scan_backend() {
+    pattern=$1
+    shift
+    grep -En "$pattern" "$@"
+  }
 fi
+
+scan() {
+  if scan_backend "$@"; then
+    return 0
+  else
+    status=$?
+    if [ "$status" -eq 1 ]; then
+      return 1
+    fi
+    echo "release-policy scan failed with status $status" >&2
+    exit "$status"
+  fi
+}
 
 alr build
 alr exec -- gprbuild -f -p -j0 -P tests/flyology_cbor_tests.gpr
@@ -22,25 +42,25 @@ alr exec -- gprbuild -f -p -j0 \
 "$project_root/scripts/test-examples.sh"
 "$project_root/scripts/check-public-units.sh"
 
-if rg -n 'Flyology_Serde|Type_IR|Reflection|Flyology_Wire|Flyology_JSON|Ada\.Task' \
-  src alire.toml flyology_cbor.gpr; then
+if scan 'Flyology_Serde|Type_IR|Reflection|Flyology_Wire|Flyology_JSON|Ada\.Task' \
+  src/*.ad? alire.toml flyology_cbor.gpr; then
   echo "forbidden downstream dependency or semantic coupling in runtime sources" >&2
   exit 1
 fi
 
 os_import_pattern='^[[:space:]]*((limited|private)[[:space:]]+)?with[[:space:]]+(Interfaces\.C|GNAT\.OS_Lib|System\.(OS|Tasking)|Ada\.Task)'
-if rg -n "$os_import_pattern" src; then
+if scan "$os_import_pattern" src/*.ad?; then
   echo "OS, C, or tasking import entered the runtime sources" >&2
   exit 1
 fi
 
-if rg -n '^[[:space:]]*type .* access|:=[[:space:]]*new |^with Ada\.Containers' \
+if scan '^[[:space:]]*type .* access|:=[[:space:]]*new |^with Ada\.Containers' \
   src/flyology_cbor-parsing.ad? src/flyology_cbor-writer_engine.ad?; then
   echo "allocation-capable construct entered the no-allocation parser/writer core" >&2
   exit 1
 fi
 
-if rg -n '^\[\[pins\]\]' alire.toml tests/installed-client/alire.toml; then
+if scan '^\[\[pins\]\]' alire.toml tests/installed-client/alire.toml; then
   echo "published or installed-client manifest contains a pin" >&2
   exit 1
 fi

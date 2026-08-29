@@ -35,9 +35,9 @@ if [ -n "$(uniq -d "$expected")" ]; then
   exit 1
 fi
 
-if ! rg -q '^private generic$' "$project_root/src/flyology_cbor-writer_engine.ads" ||
-   ! rg -q '^package Flyology_CBOR\.Writer_Engine is$' \
-     "$project_root/src/flyology_cbor-writer_engine.ads"; then
+if ! grep -Eq '^private generic$' "$project_root/src/flyology_cbor-writer_engine.ads" ||
+   ! grep -Eq '^package Flyology_CBOR\.Writer_Engine is$' \
+      "$project_root/src/flyology_cbor-writer_engine.ads"; then
   echo "targetless writer engine is no longer a private child" >&2
   exit 1
 fi
