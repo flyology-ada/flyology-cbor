@@ -2,7 +2,7 @@
 
 > Experimental streaming CBOR parser and transactional writer for Ada.
 
-Flyology CBOR 0.1.0-dev is prepared for publication in the public GitHub repository, with Pages documentation configured for cbor.flyology.org. The crate has no Alire index entry. The bounded parser and writer allocate no heap storage. Callers select every profile and syntax-depth bound explicitly. A Drain caller supplies event storage, and bounded writing callers select output capacity.
+Flyology CBOR 0.1.0-dev source is available from the public GitHub repository, with documentation at cbor.flyology.org. The crate has no Alire index entry. The bounded parser and writer allocate no heap storage. Callers select every profile and syntax-depth bound explicitly. A Drain caller supplies event storage, and bounded writing callers select output capacity.
 
 ## Documentation
 
@@ -27,4 +27,4 @@ Flyology CBOR 0.1.0-dev is prepared for publication in the public GitHub reposit
 - Tags remain syntax and carry no schema, Type IR, Reflection, or Wire identity.
 - Ordinary Compact preserves caller order but is not canonical CBOR.
 - The parser has no DOM or collector. The bounded core performs no allocation.
-- Public repository and Pages publication are prepared. No Alire index entry or downstream migration is authorized. Hosted CI is evidence only for its exact source commit.
+- The repository and Pages site are public. No Alire index entry or downstream migration is authorized. Hosted CI is evidence only for its exact source commit.
